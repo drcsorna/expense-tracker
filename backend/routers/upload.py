@@ -6,16 +6,12 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from sqlalchemy.orm import Session
 
-# Relative imports (going up one level to access the parent modules)
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-
-import models
-import schemas
-from models import get_db
-from auth import get_current_user
-from upload_processor import TransactionUploadProcessor, TransactionMapper, DeduplicationService
+# Relative imports
+from .. import models
+from .. import schemas
+from ..models import get_db
+from ..auth import get_current_user
+from ..upload_processor import TransactionUploadProcessor, TransactionMapper, DeduplicationService
 
 router = APIRouter(
     prefix="/upload",

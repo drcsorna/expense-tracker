@@ -16,7 +16,7 @@ except ImportError:
     PANDAS_AVAILABLE = False
     
 # Relative import
-import models
+from . import models
 
 
 class TransactionUploadProcessor:
@@ -38,8 +38,21 @@ class TransactionUploadProcessor:
             # Clean up column names (strip whitespace, normalize)
             df.columns = df.columns.str.strip()
             
-            # Remove completely empty rows
+            # Remove completely empty rows and rows where all values are NaN
             df = df.dropna(how='all')
+            
+            # Filter out rows where critical fields are empty/NaN
+            # This will help reduce the "Could not parse date: nan" errors
+            critical_date_columns = ['Date', 'Transaction Date', 'Completed Date', 'datum', 'transactiondate']
+            date_column = None
+            for col in df.columns:
+                if col.lower().strip() in [c.lower() for c in critical_date_columns]:
+                    date_column = col
+                    break
+            
+            if date_column:
+                # Remove rows where the date column is NaN/empty
+                df = df.dropna(subset=[date_column])
             
             # Convert to list of dictionaries
             return df.to_dict('records')
@@ -280,10 +293,14 @@ class TransactionMapper:
     @staticmethod
     def _parse_date(date_value: Any) -> datetime.date:
         """Parse various date formats into a date object"""
-        if date_value is None:
-            raise ValueError("Date field is required but not found")
+        if date_value is None or str(date_value).lower().strip() in ['nan', 'nat', '', 'null']:
+            raise ValueError("Date field is required but not found or is empty")
         
         date_str = str(date_value).strip()
+        
+        # Skip empty or invalid dates
+        if not date_str or date_str.lower() in ['nan', 'nat', 'null', 'none']:
+            raise ValueError("Invalid or empty date value")
         
         # Common date formats to try
         date_formats = [

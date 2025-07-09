@@ -12,14 +12,14 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
-# Import our modules (relative imports since we're in the backend folder)
-import models
-import schemas
-from models import engine, get_db
-from auth import get_current_user, verify_password, get_password_hash, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
+# Import our modules (relative imports for package structure)
+from . import models
+from . import schemas
+from .models import engine, get_db
+from .auth import get_current_user, verify_password, get_password_hash, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
 
 # Import routers
-from routers import upload
+from .routers import upload
 
 # --- Application Setup ---
 
@@ -139,7 +139,7 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
 @app.get("/transactions/", response_model=List[schemas.Transaction])
 def read_transactions(
     skip: int = 0,
-    limit: int = 100,
+    limit: int = 20,  # Back to reasonable default
     current_user: schemas.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -148,6 +148,39 @@ def read_transactions(
         models.Transaction.owner_id == current_user.id
     ).order_by(models.Transaction.transaction_date.desc()).offset(skip).limit(limit).all()
     return transactions
+
+@app.get("/transactions/count")
+def get_transactions_count(
+    current_user: schemas.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get total count of transactions for pagination."""
+    count = db.query(models.Transaction).filter(
+        models.Transaction.owner_id == current_user.id
+    ).count()
+    return {"total": count}
+
+@app.put("/transactions/{transaction_id}", response_model=schemas.Transaction)
+def update_transaction(
+    transaction_id: int,
+    transaction: schemas.TransactionCreate,
+    current_user: schemas.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Updates a transaction."""
+    db_transaction = db.query(models.Transaction).filter(
+        models.Transaction.id == transaction_id,
+        models.Transaction.owner_id == current_user.id
+    ).first()
+    if not db_transaction:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    
+    for field, value in transaction.dict().items():
+        setattr(db_transaction, field, value)
+    
+    db.commit()
+    db.refresh(db_transaction)
+    return db_transaction
 
 @app.post("/transactions/", response_model=schemas.Transaction)
 def create_transaction(
@@ -194,3 +227,18 @@ def delete_transaction(
     db.delete(transaction)
     db.commit()
     return {"message": "Transaction deleted successfully"}
+
+@app.delete("/transactions/")
+def delete_all_transactions(
+    current_user: schemas.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Deletes ALL transactions for the current user."""
+    deleted_count = db.query(models.Transaction).filter(
+        models.Transaction.owner_id == current_user.id
+    ).delete()
+    db.commit()
+    return {
+        "message": f"Successfully deleted {deleted_count} transactions",
+        "deleted_count": deleted_count
+    }

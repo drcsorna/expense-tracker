@@ -11,9 +11,9 @@ from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
 # Relative imports
-import models
-import schemas
-from models import get_db
+from . import models
+from . import schemas
+from .models import get_db
 
 # --- Security Configuration ---
 SECRET_KEY = "a_very_secret_key_that_should_be_long_and_random_in_production"
