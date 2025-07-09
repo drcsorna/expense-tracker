@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Expense Tracker - Upload Test</title>
+    <title>Expense Tracker - Upload & Manage</title>
     <style>
         * {
             margin: 0;
@@ -18,6 +18,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            padding: 1rem;
         }
 
         .container {
@@ -25,8 +26,8 @@
             border-radius: 16px;
             box-shadow: 0 20px 40px rgba(0,0,0,0.1);
             padding: 2rem;
-            max-width: 600px;
-            width: 90%;
+            max-width: 800px;
+            width: 100%;
             max-height: 90vh;
             overflow-y: auto;
         }
@@ -92,12 +93,21 @@
             border-radius: 8px;
             cursor: pointer;
             font-size: 1rem;
-            transition: background 0.3s;
+            transition: all 0.3s;
             margin-right: 0.5rem;
+            margin-bottom: 0.5rem;
+            display: inline-block;
         }
 
         .btn:hover {
             background: #5a6fd8;
+            transform: translateY(-1px);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
         }
 
         .btn-secondary {
@@ -114,6 +124,14 @@
 
         .btn-danger:hover {
             background: #c82333;
+        }
+
+        .btn-success {
+            background: #28a745;
+        }
+
+        .btn-success:hover {
+            background: #218838;
         }
 
         .file-upload {
@@ -134,6 +152,7 @@
         .file-upload.dragover {
             border-color: #5a6fd8;
             background: #e8eaff;
+            transform: scale(1.02);
         }
 
         .file-info {
@@ -161,6 +180,15 @@
             margin: 1rem 0;
         }
 
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+
         .hidden {
             display: none;
         }
@@ -175,35 +203,48 @@
 
         .status-connected {
             background: #28a745;
+            box-shadow: 0 0 6px rgba(40, 167, 69, 0.5);
         }
 
         .status-disconnected {
             background: #dc3545;
+            box-shadow: 0 0 6px rgba(220, 53, 69, 0.5);
         }
 
         .transaction-list {
-            max-height: 300px;
+            max-height: 400px;
             overflow-y: auto;
             border: 1px solid #e0e0e0;
             border-radius: 8px;
         }
 
         .transaction-item {
-            padding: 0.75rem;
+            padding: 1rem;
             border-bottom: 1px solid #e0e0e0;
             display: grid;
             grid-template-columns: 1fr auto auto;
             gap: 1rem;
             align-items: center;
+            transition: background-color 0.2s;
+        }
+
+        .transaction-item:hover {
+            background-color: #f8f9fa;
         }
 
         .transaction-item:last-child {
             border-bottom: none;
         }
 
+        .transaction-details {
+            min-width: 0;
+        }
+
         .transaction-beneficiary {
             font-weight: 500;
             color: #333;
+            margin-bottom: 0.25rem;
+            word-wrap: break-word;
         }
 
         .transaction-date {
@@ -211,10 +252,19 @@
             font-size: 0.9rem;
         }
 
+        .transaction-category {
+            color: #888;
+            font-size: 0.8rem;
+            margin-top: 0.25rem;
+        }
+
         .transaction-amount {
             font-weight: 600;
-            padding: 0.25rem 0.5rem;
-            border-radius: 4px;
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+            font-size: 1.1rem;
+            min-width: 80px;
+            text-align: center;
         }
 
         .amount-positive {
@@ -227,15 +277,82 @@
             background: #f8d7da;
         }
 
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #e0e0e0;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+            margin-top: 0.25rem;
+        }
+
+        .progress-bar {
+            background: #e0e0e0;
+            border-radius: 10px;
+            height: 6px;
+            margin: 1rem 0;
+        }
+
+        .progress-fill {
+            background: #667eea;
+            height: 100%;
+            border-radius: 10px;
+            transition: width 0.3s ease;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 0.5rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
         @media (max-width: 768px) {
             .container {
-                margin: 1rem;
+                margin: 0.5rem;
                 padding: 1rem;
             }
             
             .transaction-item {
                 grid-template-columns: 1fr;
                 gap: 0.5rem;
+                text-align: left;
+            }
+
+            .transaction-amount {
+                text-align: left;
+                justify-self: start;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -244,7 +361,7 @@
     <div class="container">
         <div class="header">
             <h1>💰 Expense Tracker</h1>
-            <p>Upload Test Interface</p>
+            <p>Upload and manage your financial transactions</p>
             <p><span id="connection-status" class="status-indicator status-disconnected"></span><span id="connection-text">Connecting...</span></p>
         </div>
 
@@ -268,6 +385,7 @@
             <div id="logged-in" class="hidden">
                 <p>✅ Logged in as: <span id="user-email"></span></p>
                 <button class="btn btn-danger" onclick="logout()">Logout</button>
+                <button class="btn btn-secondary" onclick="getFormats()">View Supported Formats</button>
             </div>
         </div>
 
@@ -277,14 +395,14 @@
             
             <div class="file-upload" id="file-upload" ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
                 <p>📁 Drag & drop your files here or <button class="btn" onclick="document.getElementById('file-input').click()">Choose Files</button></p>
-                <p style="margin-top: 0.5rem; color: #666; font-size: 0.9rem;">Supports CSV, XLS, XLSX files</p>
+                <p style="margin-top: 0.5rem; color: #666; font-size: 0.9rem;">Supports CSV, XLS, XLSX files (max 10MB each)</p>
                 <input type="file" id="file-input" accept=".csv,.xls,.xlsx" multiple style="display: none;" onchange="handleFileSelect(event)">
             </div>
 
             <div id="file-info" class="file-info hidden">
                 <h3>Selected Files:</h3>
                 <div id="file-list"></div>
-                <button class="btn" onclick="uploadFiles()">Upload Files</button>
+                <button class="btn" onclick="uploadFiles()" id="upload-btn">Upload Files</button>
                 <button class="btn btn-secondary" onclick="clearFiles()">Clear</button>
             </div>
 
@@ -294,16 +412,42 @@
         <!-- Transactions Section -->
         <div id="transactions-section" class="section hidden">
             <h2>📊 Your Transactions</h2>
-            <button class="btn" onclick="loadTransactions()">Refresh Transactions</button>
+            
+            <div class="stats-grid" id="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="total-transactions">0</div>
+                    <div class="stat-label">Total Transactions</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="total-income">€0.00</div>
+                    <div class="stat-label">Total Income</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="total-expenses">€0.00</div>
+                    <div class="stat-label">Total Expenses</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="net-balance">€0.00</div>
+                    <div class="stat-label">Net Balance</div>
+                </div>
+            </div>
+
+            <button class="btn" onclick="loadTransactions()">
+                <span id="refresh-icon">🔄</span> Refresh Transactions
+            </button>
+            
             <div id="transactions-list" class="transaction-list" style="margin-top: 1rem;">
-                <p style="padding: 1rem; text-align: center; color: #666;">No transactions loaded</p>
+                <p style="padding: 2rem; text-align: center; color: #666;">No transactions loaded</p>
             </div>
         </div>
     </div>
 
     <script>
-        // Configuration
-        const API_BASE = 'http://192.168.10.160:8680/proxy/8000';
+        // Configuration - automatically detect the API base URL
+        const API_BASE = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1') 
+            ? 'http://localhost:8000' 
+            : window.location.origin;
+            
         let authToken = localStorage.getItem('authToken');
         let selectedFiles = [];
 
@@ -328,6 +472,7 @@
             } catch (error) {
                 document.getElementById('connection-status').className = 'status-indicator status-disconnected';
                 document.getElementById('connection-text').textContent = 'Disconnected';
+                console.error('Connection check failed:', error);
             }
         }
 
@@ -335,6 +480,11 @@
         async function register() {
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
+
+            if (!email || !password) {
+                showResult('Please enter both email and password', 'error');
+                return;
+            }
 
             try {
                 const response = await fetch(`${API_BASE}/users/`, {
@@ -357,6 +507,11 @@
         async function login() {
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
+
+            if (!email || !password) {
+                showResult('Please enter both email and password', 'error');
+                return;
+            }
 
             try {
                 const formData = new FormData();
@@ -386,6 +541,40 @@
             authToken = null;
             localStorage.removeItem('authToken');
             showLoggedOut();
+            showResult('Logged out successfully', 'result');
+        }
+
+        async function getFormats() {
+            try {
+                const response = await fetch(`${API_BASE}/upload/formats/`);
+                if (response.ok) {
+                    const formats = await response.json();
+                    showFormatsInfo(formats);
+                } else {
+                    showResult('Failed to load format information', 'error');
+                }
+            } catch (error) {
+                showResult(`Error loading formats: ${error.message}`, 'error');
+            }
+        }
+
+        function showFormatsInfo(formats) {
+            let info = '<h3>Supported File Formats:</h3>';
+            
+            Object.entries(formats.supported_formats).forEach(([key, format]) => {
+                info += `<p><strong>${format.description}</strong><br>`;
+                info += `Extensions: ${format.extensions.join(', ')}<br>`;
+                info += `Max size: ${format.max_size_mb}MB</p>`;
+            });
+
+            info += '<h3>Expected Columns:</h3>';
+            Object.entries(formats.expected_columns).forEach(([key, cols]) => {
+                info += `<p><strong>${key.replace('_', ' ').toUpperCase()}</strong><br>`;
+                info += `Required: ${cols.required.join(', ')}<br>`;
+                info += `Optional: ${cols.optional.join(', ')}</p>`;
+            });
+
+            showResult(info, 'result');
         }
 
         function showLoggedIn() {
@@ -429,13 +618,27 @@
 
         function addFiles(files) {
             const validExtensions = ['.csv', '.xls', '.xlsx'];
+            const maxSize = 10 * 1024 * 1024; // 10MB
+            
             const validFiles = files.filter(file => {
                 const extension = '.' + file.name.split('.').pop().toLowerCase();
-                return validExtensions.includes(extension);
+                const isValidExtension = validExtensions.includes(extension);
+                const isValidSize = file.size <= maxSize;
+                
+                if (!isValidExtension) {
+                    showResult(`Invalid file type: ${file.name}. Please use CSV, XLS, or XLSX files.`, 'error');
+                    return false;
+                }
+                
+                if (!isValidSize) {
+                    showResult(`File too large: ${file.name}. Maximum size is 10MB.`, 'error');
+                    return false;
+                }
+                
+                return true;
             });
 
             if (validFiles.length === 0) {
-                showResult('Please select valid files (CSV, XLS, XLSX)', 'error');
                 return;
             }
 
@@ -479,10 +682,15 @@
                 return;
             }
 
-            const resultsContainer = document.getElementById('upload-results');
-            resultsContainer.innerHTML = '<p>Uploading files...</p>';
+            const uploadBtn = document.getElementById('upload-btn');
+            const originalText = uploadBtn.innerHTML;
+            uploadBtn.innerHTML = '<span class="loading"></span>Uploading...';
+            uploadBtn.disabled = true;
 
-            for (const file of selectedFiles) {
+            const resultsContainer = document.getElementById('upload-results');
+            resultsContainer.innerHTML = '';
+
+            for (const [index, file] of selectedFiles.entries()) {
                 try {
                     const formData = new FormData();
                     formData.append('file', file);
@@ -505,6 +713,9 @@
                 }
             }
 
+            uploadBtn.innerHTML = originalText;
+            uploadBtn.disabled = false;
+
             // Refresh transactions after upload
             loadTransactions();
         }
@@ -518,7 +729,7 @@
             if (type === 'success') {
                 content += `
                     ✅ Success: ${result.imported} imported, ${result.duplicates_skipped} duplicates skipped<br>
-                    📊 Total rows: ${result.total_rows}<br>
+                    📊 Total rows: ${result.total_rows} | Success rate: ${result.summary?.success_rate || 'N/A'}<br>
                     ${result.errors && result.errors.length > 0 ? `⚠️ Errors: ${result.errors.join(', ')}` : ''}
                 `;
             } else {
@@ -532,6 +743,9 @@
         async function loadTransactions() {
             if (!authToken) return;
 
+            const refreshIcon = document.getElementById('refresh-icon');
+            refreshIcon.style.animation = 'spin 1s linear infinite';
+
             try {
                 const response = await fetch(`${API_BASE}/transactions/`, {
                     headers: { 'Authorization': `Bearer ${authToken}` }
@@ -540,19 +754,38 @@
                 if (response.ok) {
                     const transactions = await response.json();
                     displayTransactions(transactions);
+                    updateStats(transactions);
                 } else {
                     showResult('Failed to load transactions', 'error');
                 }
             } catch (error) {
                 showResult(`Error loading transactions: ${error.message}`, 'error');
+            } finally {
+                refreshIcon.style.animation = '';
             }
+        }
+
+        function updateStats(transactions) {
+            const total = transactions.length;
+            const income = transactions.filter(t => parseFloat(t.amount) > 0).reduce((sum, t) => sum + parseFloat(t.amount), 0);
+            const expenses = Math.abs(transactions.filter(t => parseFloat(t.amount) < 0).reduce((sum, t) => sum + parseFloat(t.amount), 0));
+            const balance = income - expenses;
+
+            document.getElementById('total-transactions').textContent = total;
+            document.getElementById('total-income').textContent = `€${income.toFixed(2)}`;
+            document.getElementById('total-expenses').textContent = `€${expenses.toFixed(2)}`;
+            document.getElementById('net-balance').textContent = `€${balance.toFixed(2)}`;
+            
+            // Color code the balance
+            const balanceElement = document.getElementById('net-balance');
+            balanceElement.style.color = balance >= 0 ? '#28a745' : '#dc3545';
         }
 
         function displayTransactions(transactions) {
             const container = document.getElementById('transactions-list');
             
             if (transactions.length === 0) {
-                container.innerHTML = '<p style="padding: 1rem; text-align: center; color: #666;">No transactions found</p>';
+                container.innerHTML = '<p style="padding: 2rem; text-align: center; color: #666;">No transactions found</p>';
                 return;
             }
 
@@ -563,9 +796,10 @@
                 
                 return `
                     <div class="transaction-item">
-                        <div>
+                        <div class="transaction-details">
                             <div class="transaction-beneficiary">${tx.beneficiary}</div>
-                            <div class="transaction-date">${tx.transaction_date} • ${tx.category || 'Uncategorized'}</div>
+                            <div class="transaction-date">${new Date(tx.transaction_date).toLocaleDateString()}</div>
+                            ${tx.category ? `<div class="transaction-category">${tx.category}</div>` : ''}
                         </div>
                         <div class="transaction-amount ${amountClass}">
                             ${amountSymbol}€${Math.abs(amount).toFixed(2)}
@@ -577,7 +811,7 @@
 
         // Utility functions
         function showResult(message, type) {
-            const existing = document.querySelector('.result, .error');
+            const existing = document.querySelector('.result, .error, .warning');
             if (existing) existing.remove();
 
             const div = document.createElement('div');
@@ -585,8 +819,11 @@
             div.innerHTML = message;
             document.getElementById('auth-section').appendChild(div);
 
-            setTimeout(() => div.remove(), 5000);
+            setTimeout(() => div.remove(), 8000);
         }
+
+        // Auto-refresh connection status
+        setInterval(checkConnection, 30000); // Check every 30 seconds
     </script>
 </body>
 </html>

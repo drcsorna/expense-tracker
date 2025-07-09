@@ -3,6 +3,7 @@
 
 from datetime import datetime, timedelta
 from typing import List
+import os
 
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,16 +11,15 @@ from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
-import os
 
-# Import our modules
-import backend.models as models
-import backend.schemas as schemas
-from backend.models import engine, get_db
-from backend.auth import get_current_user, verify_password, get_password_hash, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
+# Import our modules (relative imports since we're in the backend folder)
+import models
+import schemas
+from models import engine, get_db
+from auth import get_current_user, verify_password, get_password_hash, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
 
 # Import routers
-from backend.routers import upload
+from routers import upload
 
 # --- Application Setup ---
 
@@ -34,15 +34,20 @@ app = FastAPI(
 )
 
 # --- CORS Middleware ---
+# More flexible CORS configuration for development
 origins = [
     "http://localhost",
     "http://localhost:3000",  # Default Next.js port
+    "http://localhost:8000",  # FastAPI default
+    "http://127.0.0.1:8000",
+    "http://127.0.0.1:3000",
+    # Add your specific development server if needed
     "http://192.168.10.160:8680",  # Your code-server proxy
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],  # More permissive for development - restrict in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -50,8 +55,9 @@ app.add_middleware(
 
 # --- Static Files ---
 # Serve the frontend directory as static files
-if os.path.exists("frontend"):
-    app.mount("/static", StaticFiles(directory="frontend"), name="static")
+frontend_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
+if os.path.exists(frontend_path):
+    app.mount("/static", StaticFiles(directory=frontend_path), name="static")
 
 # --- Include Routers ---
 app.include_router(upload.router)
@@ -61,9 +67,10 @@ app.include_router(upload.router)
 @app.get("/")
 def read_root():
     """Root endpoint - can serve the frontend or API info."""
-    # If frontend exists, serve the HTML file
-    if os.path.exists("frontend/index.html"):
-        return FileResponse("frontend/index.html")
+    # Check for frontend index.html
+    frontend_index = os.path.join(frontend_path, "index.html")
+    if os.path.exists(frontend_index):
+        return FileResponse(frontend_index)
     
     # Otherwise, return API info
     return {
@@ -84,7 +91,11 @@ def read_root():
 @app.get("/app")
 def serve_frontend():
     """Explicitly serve the frontend application."""
-    return FileResponse("frontend/index.html")
+    frontend_index = os.path.join(frontend_path, "index.html")
+    if os.path.exists(frontend_index):
+        return FileResponse(frontend_index)
+    else:
+        raise HTTPException(status_code=404, detail="Frontend not found")
 
 @app.get("/health")
 def health_check():
@@ -92,7 +103,8 @@ def health_check():
     return {
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
-        "service": "expense-tracker-api"
+        "service": "expense-tracker-api",
+        "version": "1.0.0"
     }
 
 @app.post("/token", response_model=schemas.Token)
@@ -132,7 +144,9 @@ def read_transactions(
     db: Session = Depends(get_db)
 ):
     """Retrieves a list of transactions for the currently authenticated user."""
-    transactions = db.query(models.Transaction).filter(models.Transaction.owner_id == current_user.id).offset(skip).limit(limit).all()
+    transactions = db.query(models.Transaction).filter(
+        models.Transaction.owner_id == current_user.id
+    ).order_by(models.Transaction.transaction_date.desc()).offset(skip).limit(limit).all()
     return transactions
 
 @app.post("/transactions/", response_model=schemas.Transaction)
@@ -147,3 +161,36 @@ def create_transaction(
     db.commit()
     db.refresh(db_transaction)
     return db_transaction
+
+@app.get("/transactions/{transaction_id}", response_model=schemas.Transaction)
+def read_transaction(
+    transaction_id: int,
+    current_user: schemas.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Retrieves a specific transaction by ID."""
+    transaction = db.query(models.Transaction).filter(
+        models.Transaction.id == transaction_id,
+        models.Transaction.owner_id == current_user.id
+    ).first()
+    if transaction is None:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    return transaction
+
+@app.delete("/transactions/{transaction_id}")
+def delete_transaction(
+    transaction_id: int,
+    current_user: schemas.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Deletes a specific transaction by ID."""
+    transaction = db.query(models.Transaction).filter(
+        models.Transaction.id == transaction_id,
+        models.Transaction.owner_id == current_user.id
+    ).first()
+    if transaction is None:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    
+    db.delete(transaction)
+    db.commit()
+    return {"message": "Transaction deleted successfully"}

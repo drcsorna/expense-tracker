@@ -1,9 +1,23 @@
 [project]
 name = "expense-tracker"
 version = "0.1.0"
-description = "Personal expense tracking application with FastAPI backend"
+description = "Personal expense tracking application with FastAPI backend and file upload support"
 readme = "README.md"
 requires-python = ">=3.12"
+authors = [
+    {name = "Expense Tracker Team", email = "team@example.com"},
+]
+license = {text = "MIT"}
+keywords = ["expense", "tracker", "finance", "fastapi", "personal-finance"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Office/Business :: Financial",
+]
+
 dependencies = [
     # Core FastAPI and web server
     "fastapi>=0.116.0",
@@ -14,12 +28,17 @@ dependencies = [
     
     # Authentication and security
     "python-jose[cryptography]>=3.5.0",
-    "bcrypt>=4.3.0",  # Use bcrypt directly instead of passlib
+    "bcrypt>=4.3.0",
     
     # Data validation and parsing
     "pydantic[email]>=2.11.7",
     "python-multipart>=0.0.20",
     "email-validator>=2.2.0",
+    
+    # File processing
+    "pandas>=2.0.0",
+    "openpyxl>=3.1.0",  # For Excel file support
+    "xlrd>=2.0.0",      # For older Excel files
     
     # Testing
     "pytest>=8.4.1",
@@ -34,26 +53,84 @@ dev = [
     "black>=23.0.0",
     "isort>=5.12.0",
     "mypy>=1.5.0",
+    "pre-commit>=3.0.0",
 ]
 
-# Simplified build system - no editable install needed for this project structure
+test = [
+    # Additional testing tools
+    "pytest-mock>=3.10.0",
+    "factory-boy>=3.3.0",
+    "faker>=20.0.0",
+]
+
+prod = [
+    # Production dependencies
+    "gunicorn>=21.0.0",
+    "psycopg2-binary>=2.9.0",  # For PostgreSQL in production
+]
+
+[project.urls]
+"Homepage" = "https://github.com/yourusername/expense-tracker"
+"Bug Reports" = "https://github.com/yourusername/expense-tracker/issues"
+"Source" = "https://github.com/yourusername/expense-tracker"
+
+[project.scripts]
+expense-tracker = "backend.main:app"
+
 [build-system]
-requires = ["setuptools", "wheel"]
+requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["backend*"]
+exclude = ["tests*", "scripts*"]
+
 [tool.pytest.ini_options]
-testpaths = ["backend/tests"]
-python_files = ["test_*.py"]
+testpaths = ["backend/tests", "tests"]
+python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = [
     "-v",
     "--tb=short",
     "--strict-markers",
+    "--cov=backend",
+    "--cov-report=term-missing",
+    "--cov-report=html",
 ]
 # Filter out external library warnings we can't control
 filterwarnings = [
     "ignore::DeprecationWarning:passlib.*",
+    "ignore::PendingDeprecationWarning",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+]
+
+[tool.coverage.run]
+source = ["backend"]
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "*/__pycache__/*",
+    "*/migrations/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\bProtocol\):",
+    "@(abc\.)?abstractmethod",
 ]
 
 [tool.black]
@@ -70,11 +147,12 @@ extend-exclude = '''
   | \.tox
   | \.venv
   | venv
-  | \.venv
+  | \.env
   | _build
   | buck-out
   | build
   | dist
+  | migrations
 )/
 '''
 
@@ -85,3 +163,56 @@ multi_line_output = 3
 include_trailing_comma = true
 force_grid_wrap = 0
 use_parentheses = true
+ensure_newline_before_comments = true
+known_first_party = ["backend"]
+known_third_party = ["fastapi", "pydantic", "sqlalchemy", "pandas"]
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
+[[tool.mypy.overrides]]
+module = [
+    "pandas.*",
+    "openpyxl.*",
+    "xlrd.*",
+]
+ignore_missing_imports = true
+
+[tool.ruff]
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
+]
+ignore = [
+    "E501",  # line too long, handled by black
+    "B008",  # do not perform function calls in argument defaults
+    "C901",  # too complex
+]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.per-file-ignores]
+"__init__.py" = ["F401"]
+"tests/*" = ["F401", "F811"]
