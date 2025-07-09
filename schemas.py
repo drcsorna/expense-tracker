@@ -1,7 +1,7 @@
 # backend/schemas.py
 # Data validation schemas (Pydantic)
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, ConfigDict
 from typing import List, Optional, Any
 from datetime import date
 from decimal import Decimal
@@ -56,9 +56,8 @@ class Transaction(TransactionBase):
     id: int
     owner_id: int
 
-    class Config:
-        # This allows Pydantic to read data from ORM models (like our SQLAlchemy classes).
-        orm_mode = True
+    # Updated for Pydantic v2 - replaces the old Config class
+    model_config = ConfigDict(from_attributes=True)
 
 class User(UserBase):
     """
@@ -68,8 +67,8 @@ class User(UserBase):
     id: int
     transactions: List[Transaction] = []
 
-    class Config:
-        orm_mode = True
+    # Updated for Pydantic v2 - replaces the old Config class
+    model_config = ConfigDict(from_attributes=True)
 
 
 # --- Schemas for Authentication ---
@@ -86,4 +85,3 @@ class TokenData(BaseModel):
     Schema for the data contained within the JWT token.
     """
     email: Optional[str] = None
-

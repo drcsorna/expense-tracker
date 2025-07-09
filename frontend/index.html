@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expense Tracker - Upload Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 2rem;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .header h1 {
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            color: #666;
+        }
+
+        .section {
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border-left: 4px solid #667eea;
+        }
+
+        .section h2 {
+            color: #333;
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #555;
+            font-weight: 500;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background 0.3s;
+            margin-right: 0.5rem;
+        }
+
+        .btn:hover {
+            background: #5a6fd8;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .file-upload {
+            border: 2px dashed #667eea;
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: center;
+            background: #f8f9ff;
+            margin-bottom: 1rem;
+            transition: all 0.3s;
+        }
+
+        .file-upload:hover {
+            border-color: #5a6fd8;
+            background: #f0f2ff;
+        }
+
+        .file-upload.dragover {
+            border-color: #5a6fd8;
+            background: #e8eaff;
+        }
+
+        .file-info {
+            background: #e3f2fd;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+
+        .result {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+        }
+
+        .status-connected {
+            background: #28a745;
+        }
+
+        .status-disconnected {
+            background: #dc3545;
+        }
+
+        .transaction-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+        }
+
+        .transaction-item {
+            padding: 0.75rem;
+            border-bottom: 1px solid #e0e0e0;
+            display: grid;
+            grid-template-columns: 1fr auto auto;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .transaction-item:last-child {
+            border-bottom: none;
+        }
+
+        .transaction-beneficiary {
+            font-weight: 500;
+            color: #333;
+        }
+
+        .transaction-date {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .transaction-amount {
+            font-weight: 600;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+        }
+
+        .amount-positive {
+            color: #28a745;
+            background: #d4edda;
+        }
+
+        .amount-negative {
+            color: #dc3545;
+            background: #f8d7da;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 1rem;
+                padding: 1rem;
+            }
+            
+            .transaction-item {
+                grid-template-columns: 1fr;
+                gap: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💰 Expense Tracker</h1>
+            <p>Upload Test Interface</p>
+            <p><span id="connection-status" class="status-indicator status-disconnected"></span><span id="connection-text">Connecting...</span></p>
+        </div>
+
+        <!-- Authentication Section -->
+        <div id="auth-section" class="section">
+            <h2>🔐 Authentication</h2>
+            
+            <div id="login-form">
+                <div class="form-group">
+                    <label for="email">Email:</label>
+                    <input type="email" id="email" placeholder="Enter your email" value="test@example.com">
+                </div>
+                <div class="form-group">
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" placeholder="Enter your password" value="testpassword">
+                </div>
+                <button class="btn" onclick="login()">Login</button>
+                <button class="btn btn-secondary" onclick="register()">Register</button>
+            </div>
+
+            <div id="logged-in" class="hidden">
+                <p>✅ Logged in as: <span id="user-email"></span></p>
+                <button class="btn btn-danger" onclick="logout()">Logout</button>
+            </div>
+        </div>
+
+        <!-- Upload Section -->
+        <div id="upload-section" class="section hidden">
+            <h2>📤 File Upload</h2>
+            
+            <div class="file-upload" id="file-upload" ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
+                <p>📁 Drag & drop your files here or <button class="btn" onclick="document.getElementById('file-input').click()">Choose Files</button></p>
+                <p style="margin-top: 0.5rem; color: #666; font-size: 0.9rem;">Supports CSV, XLS, XLSX files</p>
+                <input type="file" id="file-input" accept=".csv,.xls,.xlsx" multiple style="display: none;" onchange="handleFileSelect(event)">
+            </div>
+
+            <div id="file-info" class="file-info hidden">
+                <h3>Selected Files:</h3>
+                <div id="file-list"></div>
+                <button class="btn" onclick="uploadFiles()">Upload Files</button>
+                <button class="btn btn-secondary" onclick="clearFiles()">Clear</button>
+            </div>
+
+            <div id="upload-results"></div>
+        </div>
+
+        <!-- Transactions Section -->
+        <div id="transactions-section" class="section hidden">
+            <h2>📊 Your Transactions</h2>
+            <button class="btn" onclick="loadTransactions()">Refresh Transactions</button>
+            <div id="transactions-list" class="transaction-list" style="margin-top: 1rem;">
+                <p style="padding: 1rem; text-align: center; color: #666;">No transactions loaded</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const API_BASE = 'http://192.168.10.160:8680/proxy/8000';
+        let authToken = localStorage.getItem('authToken');
+        let selectedFiles = [];
+
+        // Initialize the app
+        document.addEventListener('DOMContentLoaded', function() {
+            checkConnection();
+            if (authToken) {
+                showLoggedIn();
+            }
+        });
+
+        // Connection check
+        async function checkConnection() {
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                if (response.ok) {
+                    document.getElementById('connection-status').className = 'status-indicator status-connected';
+                    document.getElementById('connection-text').textContent = 'Connected';
+                } else {
+                    throw new Error('Connection failed');
+                }
+            } catch (error) {
+                document.getElementById('connection-status').className = 'status-indicator status-disconnected';
+                document.getElementById('connection-text').textContent = 'Disconnected';
+            }
+        }
+
+        // Authentication functions
+        async function register() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const response = await fetch(`${API_BASE}/users/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                if (response.ok) {
+                    showResult('User registered successfully! You can now login.', 'result');
+                } else {
+                    const error = await response.json();
+                    showResult(`Registration failed: ${error.detail}`, 'error');
+                }
+            } catch (error) {
+                showResult(`Registration error: ${error.message}`, 'error');
+            }
+        }
+
+        async function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const formData = new FormData();
+                formData.append('username', email);
+                formData.append('password', password);
+
+                const response = await fetch(`${API_BASE}/token`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    authToken = data.access_token;
+                    localStorage.setItem('authToken', authToken);
+                    showLoggedIn();
+                } else {
+                    const error = await response.json();
+                    showResult(`Login failed: ${error.detail}`, 'error');
+                }
+            } catch (error) {
+                showResult(`Login error: ${error.message}`, 'error');
+            }
+        }
+
+        function logout() {
+            authToken = null;
+            localStorage.removeItem('authToken');
+            showLoggedOut();
+        }
+
+        function showLoggedIn() {
+            document.getElementById('login-form').classList.add('hidden');
+            document.getElementById('logged-in').classList.remove('hidden');
+            document.getElementById('upload-section').classList.remove('hidden');
+            document.getElementById('transactions-section').classList.remove('hidden');
+            document.getElementById('user-email').textContent = document.getElementById('email').value;
+            loadTransactions();
+        }
+
+        function showLoggedOut() {
+            document.getElementById('login-form').classList.remove('hidden');
+            document.getElementById('logged-in').classList.add('hidden');
+            document.getElementById('upload-section').classList.add('hidden');
+            document.getElementById('transactions-section').classList.add('hidden');
+        }
+
+        // File handling functions
+        function handleDragOver(e) {
+            e.preventDefault();
+            document.getElementById('file-upload').classList.add('dragover');
+        }
+
+        function handleDragLeave(e) {
+            e.preventDefault();
+            document.getElementById('file-upload').classList.remove('dragover');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            document.getElementById('file-upload').classList.remove('dragover');
+            const files = Array.from(e.dataTransfer.files);
+            addFiles(files);
+        }
+
+        function handleFileSelect(e) {
+            const files = Array.from(e.target.files);
+            addFiles(files);
+        }
+
+        function addFiles(files) {
+            const validExtensions = ['.csv', '.xls', '.xlsx'];
+            const validFiles = files.filter(file => {
+                const extension = '.' + file.name.split('.').pop().toLowerCase();
+                return validExtensions.includes(extension);
+            });
+
+            if (validFiles.length === 0) {
+                showResult('Please select valid files (CSV, XLS, XLSX)', 'error');
+                return;
+            }
+
+            selectedFiles = [...selectedFiles, ...validFiles];
+            updateFileList();
+        }
+
+        function updateFileList() {
+            const fileList = document.getElementById('file-list');
+            const fileInfo = document.getElementById('file-info');
+
+            if (selectedFiles.length === 0) {
+                fileInfo.classList.add('hidden');
+                return;
+            }
+
+            fileInfo.classList.remove('hidden');
+            fileList.innerHTML = selectedFiles.map((file, index) => `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid #ddd;">
+                    <span>📄 ${file.name} (${(file.size / 1024).toFixed(1)} KB)</span>
+                    <button class="btn btn-danger" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;" onclick="removeFile(${index})">Remove</button>
+                </div>
+            `).join('');
+        }
+
+        function removeFile(index) {
+            selectedFiles.splice(index, 1);
+            updateFileList();
+        }
+
+        function clearFiles() {
+            selectedFiles = [];
+            updateFileList();
+            document.getElementById('file-input').value = '';
+        }
+
+        // Upload function
+        async function uploadFiles() {
+            if (selectedFiles.length === 0) {
+                showResult('Please select files to upload', 'error');
+                return;
+            }
+
+            const resultsContainer = document.getElementById('upload-results');
+            resultsContainer.innerHTML = '<p>Uploading files...</p>';
+
+            for (const file of selectedFiles) {
+                try {
+                    const formData = new FormData();
+                    formData.append('file', file);
+
+                    const response = await fetch(`${API_BASE}/upload/transactions/`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${authToken}` },
+                        body: formData
+                    });
+
+                    const result = await response.json();
+
+                    if (response.ok) {
+                        showUploadResult(file.name, result, 'success');
+                    } else {
+                        showUploadResult(file.name, result, 'error');
+                    }
+                } catch (error) {
+                    showUploadResult(file.name, { error: error.message }, 'error');
+                }
+            }
+
+            // Refresh transactions after upload
+            loadTransactions();
+        }
+
+        function showUploadResult(fileName, result, type) {
+            const resultsContainer = document.getElementById('upload-results');
+            const className = type === 'success' ? 'result' : 'error';
+            
+            let content = `<strong>📄 ${fileName}</strong><br>`;
+            
+            if (type === 'success') {
+                content += `
+                    ✅ Success: ${result.imported} imported, ${result.duplicates_skipped} duplicates skipped<br>
+                    📊 Total rows: ${result.total_rows}<br>
+                    ${result.errors && result.errors.length > 0 ? `⚠️ Errors: ${result.errors.join(', ')}` : ''}
+                `;
+            } else {
+                content += `❌ Error: ${result.detail || result.error || 'Upload failed'}`;
+            }
+            
+            resultsContainer.innerHTML += `<div class="${className}">${content}</div>`;
+        }
+
+        // Transactions functions
+        async function loadTransactions() {
+            if (!authToken) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/transactions/`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (response.ok) {
+                    const transactions = await response.json();
+                    displayTransactions(transactions);
+                } else {
+                    showResult('Failed to load transactions', 'error');
+                }
+            } catch (error) {
+                showResult(`Error loading transactions: ${error.message}`, 'error');
+            }
+        }
+
+        function displayTransactions(transactions) {
+            const container = document.getElementById('transactions-list');
+            
+            if (transactions.length === 0) {
+                container.innerHTML = '<p style="padding: 1rem; text-align: center; color: #666;">No transactions found</p>';
+                return;
+            }
+
+            container.innerHTML = transactions.map(tx => {
+                const amount = parseFloat(tx.amount);
+                const amountClass = amount >= 0 ? 'amount-positive' : 'amount-negative';
+                const amountSymbol = amount >= 0 ? '+' : '';
+                
+                return `
+                    <div class="transaction-item">
+                        <div>
+                            <div class="transaction-beneficiary">${tx.beneficiary}</div>
+                            <div class="transaction-date">${tx.transaction_date} • ${tx.category || 'Uncategorized'}</div>
+                        </div>
+                        <div class="transaction-amount ${amountClass}">
+                            ${amountSymbol}€${Math.abs(amount).toFixed(2)}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Utility functions
+        function showResult(message, type) {
+            const existing = document.querySelector('.result, .error');
+            if (existing) existing.remove();
+
+            const div = document.createElement('div');
+            div.className = type;
+            div.innerHTML = message;
+            document.getElementById('auth-section').appendChild(div);
+
+            setTimeout(() => div.remove(), 5000);
+        }
+    </script>
+</body>
+</html>
