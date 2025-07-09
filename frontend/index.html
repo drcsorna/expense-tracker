@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Expense Tracker - Modern Finance Management</title>
+    <title>Expense Tracker v2.0 - Smart Finance Management</title>
     <style>
         * {
             margin: 0;
@@ -15,93 +15,96 @@
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            line-height: 1.4;
-            font-size: 14px;
+            line-height: 1.3;
+            font-size: 13px;
         }
 
         .container {
             background: white;
-            border-radius: 12px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-            margin: 1rem;
-            padding: 1.5rem;
-            max-width: 1200px;
-            margin: 1rem auto;
+            border-radius: 8px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+            margin: 0.5rem;
+            padding: 1rem;
+            max-width: 1400px;
+            margin: 0.5rem auto;
         }
 
         .header {
             text-align: center;
-            margin-bottom: 1.5rem;
-            padding-bottom: 1rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
             border-bottom: 1px solid #e5e7eb;
         }
 
         .header h1 {
             color: #1f2937;
-            font-size: 1.75rem;
+            font-size: 1.5rem;
             font-weight: 700;
-            margin-bottom: 0.25rem;
+            margin-bottom: 0.125rem;
         }
 
         .header p {
             color: #6b7280;
-            font-size: 0.875rem;
+            font-size: 0.75rem;
         }
 
         .section {
-            margin-bottom: 1.5rem;
-            padding: 1rem;
+            margin-bottom: 1rem;
+            padding: 0.75rem;
             background: #f9fafb;
-            border-radius: 8px;
+            border-radius: 6px;
             border: 1px solid #e5e7eb;
         }
 
         .section h2 {
             color: #1f2937;
-            margin-bottom: 0.75rem;
-            font-size: 1rem;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
             font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
         }
 
         .form-group {
-            margin-bottom: 0.75rem;
+            margin-bottom: 0.5rem;
         }
 
         .form-group label {
             display: block;
-            margin-bottom: 0.25rem;
+            margin-bottom: 0.125rem;
             color: #374151;
             font-weight: 500;
-            font-size: 0.875rem;
+            font-size: 0.75rem;
         }
 
         .form-group input, .form-group select {
             width: 100%;
-            padding: 0.5rem;
+            padding: 0.375rem;
             border: 1px solid #d1d5db;
-            border-radius: 6px;
-            font-size: 0.875rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
             transition: border-color 0.2s;
         }
 
         .form-group input:focus, .form-group select:focus {
             outline: none;
             border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
         }
 
         .btn {
             background: #667eea;
             color: white;
             border: none;
-            padding: 0.5rem 0.875rem;
-            border-radius: 6px;
+            padding: 0.375rem 0.625rem;
+            border-radius: 4px;
             cursor: pointer;
-            font-size: 0.875rem;
+            font-size: 0.75rem;
             font-weight: 500;
             transition: all 0.2s;
-            margin-right: 0.5rem;
-            margin-bottom: 0.5rem;
+            margin-right: 0.375rem;
+            margin-bottom: 0.375rem;
             display: inline-flex;
             align-items: center;
             gap: 0.25rem;
@@ -119,8 +122,13 @@
         }
 
         .btn-sm {
-            padding: 0.25rem 0.5rem;
-            font-size: 0.75rem;
+            padding: 0.25rem 0.375rem;
+            font-size: 0.625rem;
+        }
+
+        .btn-xs {
+            padding: 0.125rem 0.25rem;
+            font-size: 0.625rem;
         }
 
         .btn-secondary {
@@ -135,12 +143,16 @@
             background: #10b981;
         }
 
+        .btn-warning {
+            background: #f59e0b;
+        }
+
         .status-indicator {
             display: inline-block;
-            width: 8px;
-            height: 8px;
+            width: 6px;
+            height: 6px;
             border-radius: 50%;
-            margin-right: 0.5rem;
+            margin-right: 0.375rem;
         }
 
         .status-connected { background: #10b981; }
@@ -148,8 +160,8 @@
 
         .file-upload {
             border: 2px dashed #667eea;
-            border-radius: 8px;
-            padding: 1.5rem;
+            border-radius: 6px;
+            padding: 1rem;
             text-align: center;
             background: #f8faff;
             transition: all 0.2s;
@@ -162,47 +174,48 @@
 
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 0.75rem;
-            margin: 1rem 0;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 0.5rem;
+            margin: 0.75rem 0;
         }
 
         .stat-card {
             background: white;
-            padding: 0.75rem;
-            border-radius: 6px;
+            padding: 0.5rem;
+            border-radius: 4px;
             text-align: center;
             border: 1px solid #e5e7eb;
         }
 
         .stat-value {
-            font-size: 1.25rem;
+            font-size: 1rem;
             font-weight: 700;
             color: #667eea;
         }
 
         .stat-label {
             color: #6b7280;
-            font-size: 0.75rem;
-            margin-top: 0.25rem;
+            font-size: 0.625rem;
+            margin-top: 0.125rem;
         }
 
         .transaction-list {
             background: white;
-            border-radius: 8px;
+            border-radius: 6px;
             border: 1px solid #e5e7eb;
             overflow: hidden;
         }
 
         .transaction-item {
-            padding: 0.75rem;
+            padding: 0.5rem;
             border-bottom: 1px solid #f3f4f6;
             display: grid;
             grid-template-columns: 1fr auto auto;
-            gap: 0.75rem;
+            gap: 0.5rem;
             align-items: center;
             transition: background-color 0.2s;
             cursor: pointer;
+            font-size: 0.75rem;
         }
 
         .transaction-item:hover {
@@ -217,30 +230,37 @@
             font-weight: 500;
             color: #1f2937;
             margin-bottom: 0.125rem;
-            font-size: 0.875rem;
+            font-size: 0.75rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .transaction-date {
             color: #6b7280;
-            font-size: 0.75rem;
+            font-size: 0.625rem;
         }
 
         .transaction-category {
             color: #8b5cf6;
-            font-size: 0.625rem;
+            font-size: 0.5rem;
             background: #f3f4f6;
-            padding: 0.125rem 0.375rem;
-            border-radius: 12px;
+            padding: 0.125rem 0.25rem;
+            border-radius: 8px;
             display: inline-block;
-            margin-top: 0.25rem;
+            margin-top: 0.125rem;
+            max-width: 80px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .transaction-amount {
             font-weight: 600;
-            padding: 0.375rem 0.5rem;
-            border-radius: 4px;
-            font-size: 0.875rem;
-            min-width: 70px;
+            padding: 0.25rem 0.375rem;
+            border-radius: 3px;
+            font-size: 0.75rem;
+            min-width: 60px;
             text-align: center;
         }
 
@@ -258,12 +278,13 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-top: 1rem;
-            padding: 0.75rem;
+            margin-top: 0.75rem;
+            padding: 0.5rem;
             background: #f9fafb;
-            border-radius: 6px;
+            border-radius: 4px;
             flex-wrap: wrap;
-            gap: 0.5rem;
+            gap: 0.375rem;
+            font-size: 0.75rem;
         }
 
         .pagination-controls {
@@ -274,9 +295,9 @@
 
         .progress-bar {
             background: #e5e7eb;
-            border-radius: 8px;
-            height: 6px;
-            margin: 0.75rem 0;
+            border-radius: 6px;
+            height: 4px;
+            margin: 0.5rem 0;
             overflow: hidden;
         }
 
@@ -307,23 +328,24 @@
 
         .modal-content {
             background: white;
-            border-radius: 12px;
-            max-width: 90vw;
+            border-radius: 8px;
+            max-width: 95vw;
             max-height: 90vh;
             overflow: hidden;
             box-shadow: 0 20px 40px rgba(0,0,0,0.15);
         }
 
         .modal-header {
-            padding: 1rem 1.5rem;
+            padding: 0.75rem 1rem;
             border-bottom: 1px solid #e5e7eb;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            font-size: 0.875rem;
         }
 
         .modal-body {
-            padding: 1.5rem;
+            padding: 1rem;
             overflow-y: auto;
             max-height: 70vh;
         }
@@ -331,26 +353,26 @@
         .modal-close {
             background: none;
             border: none;
-            font-size: 1.5rem;
+            font-size: 1.25rem;
             cursor: pointer;
             color: #6b7280;
-            padding: 0.25rem;
+            padding: 0.125rem;
         }
 
         .filters {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin-bottom: 1rem;
-            padding: 1rem;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+            padding: 0.75rem;
             background: #f9fafb;
-            border-radius: 8px;
+            border-radius: 6px;
         }
 
         .loading {
             display: inline-block;
-            width: 16px;
-            height: 16px;
+            width: 12px;
+            height: 12px;
             border: 2px solid #f3f3f3;
             border-top: 2px solid #667eea;
             border-radius: 50%;
@@ -376,10 +398,10 @@
         .hidden { display: none !important; }
 
         .result, .error, .warning {
-            padding: 0.75rem;
-            border-radius: 6px;
-            margin: 0.75rem 0;
-            font-size: 0.875rem;
+            padding: 0.5rem;
+            border-radius: 4px;
+            margin: 0.5rem 0;
+            font-size: 0.75rem;
         }
 
         .result {
@@ -400,15 +422,95 @@
             color: #92400e;
         }
 
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #e5e7eb;
+            margin-bottom: 0.75rem;
+        }
+
+        .tab {
+            padding: 0.5rem 0.75rem;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: #6b7280;
+            transition: all 0.2s;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .staged-item {
+            background: #fef3c7;
+            border-left: 3px solid #f59e0b;
+        }
+
+        .split-container {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 0.5rem;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            padding: 0.375rem;
+            background: #f3f4f6;
+            border-radius: 4px;
+        }
+
+        .progress-live {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            background: white;
+            padding: 0.75rem;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            min-width: 250px;
+            z-index: 2000;
+            font-size: 0.75rem;
+        }
+
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-size: 0.75rem;
+        }
+
+        .bulk-actions {
+            display: flex;
+            gap: 0.25rem;
+            align-items: center;
+        }
+
         @media (max-width: 768px) {
             .container {
-                margin: 0.5rem;
-                padding: 1rem;
+                margin: 0.25rem;
+                padding: 0.75rem;
             }
             
             .transaction-item {
                 grid-template-columns: 1fr;
-                gap: 0.5rem;
+                gap: 0.25rem;
             }
 
             .stats-grid {
@@ -418,14 +520,19 @@
             .filters {
                 grid-template-columns: 1fr;
             }
+
+            .toolbar {
+                flex-direction: column;
+                align-items: stretch;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>💰 Expense Tracker</h1>
-            <p>Modern financial transaction management</p>
+            <h1>💰 Expense Tracker v2.0</h1>
+            <p>Smart financial transaction management with staged processing</p>
             <p><span id="connection-status" class="status-indicator status-disconnected"></span><span id="connection-text">Connecting...</span></p>
         </div>
 
@@ -434,7 +541,7 @@
             <h2>🔐 Authentication</h2>
             
             <div id="login-form">
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
                     <div class="form-group">
                         <label for="email">Email:</label>
                         <input type="email" id="email" placeholder="Enter your email" value="test@example.com">
@@ -451,31 +558,30 @@
             <div id="logged-in" class="hidden">
                 <p>✅ Logged in as: <span id="user-email"></span></p>
                 <button class="btn btn-danger" onclick="logout()">Logout</button>
-                <button class="btn btn-secondary" onclick="getFormats()">Supported Formats</button>
+                <button class="btn btn-secondary" onclick="getFormats()">Formats</button>
             </div>
         </div>
 
         <!-- Upload Section -->
         <div id="upload-section" class="section hidden">
-            <h2>📤 File Upload</h2>
+            <h2>📤 Smart File Upload</h2>
             
             <div class="file-upload" id="file-upload" ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
                 <p>📁 Drop files here or <button class="btn btn-sm" onclick="document.getElementById('file-input').click()">Choose Files</button></p>
-                <p style="margin-top: 0.5rem; color: #6b7280; font-size: 0.75rem;">CSV, XLS, XLSX files (max 10MB)</p>
+                <p style="margin-top: 0.25rem; color: #6b7280; font-size: 0.625rem;">CSV, XLS, XLSX files (max 25MB) • Auto-detects format • Stages for review</p>
                 <input type="file" id="file-input" accept=".csv,.xls,.xlsx" multiple style="display: none;" onchange="handleFileSelect(event)">
             </div>
 
-            <div id="file-info" class="hidden" style="margin-top: 1rem;">
-                <div id="file-list" style="margin-bottom: 1rem;"></div>
-                <button class="btn" onclick="uploadFiles()" id="upload-btn">Upload Files</button>
+            <div id="file-info" class="hidden" style="margin-top: 0.75rem;">
+                <div id="file-list" style="margin-bottom: 0.75rem;"></div>
+                <button class="btn" onclick="uploadFiles()" id="upload-btn">Upload & Stage</button>
                 <button class="btn btn-secondary" onclick="clearFiles()">Clear</button>
                 
-                <!-- Enhanced Progress Bar -->
-                <div id="upload-progress" class="hidden" style="margin-top: 1rem;">
+                <div id="upload-progress" class="hidden" style="margin-top: 0.75rem;">
                     <div class="progress-bar">
                         <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
                     </div>
-                    <p id="progress-text" style="text-align: center; font-size: 0.75rem; color: #6b7280;">Ready to upload...</p>
+                    <p id="progress-text" style="text-align: center; font-size: 0.625rem; color: #6b7280;">Ready to upload...</p>
                 </div>
             </div>
 
@@ -484,63 +590,117 @@
 
         <!-- Transactions Section -->
         <div id="transactions-section" class="section hidden">
-            <h2>📊 Your Transactions</h2>
+            <h2>📊 Transaction Management</h2>
             
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-value" id="total-transactions">0</div>
-                    <div class="stat-label">Total</div>
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab('confirmed')">✅ Confirmed</div>
+                <div class="tab" onclick="switchTab('staged')">⏳ Staged</div>
+                <div class="tab" onclick="switchTab('stats')">📈 Analytics</div>
+            </div>
+
+            <!-- Confirmed Transactions Tab -->
+            <div id="confirmed-tab" class="tab-content active">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="total-transactions">0</div>
+                        <div class="stat-label">Total</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="total-income">€0.00</div>
+                        <div class="stat-label">Income</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="total-expenses">€0.00</div>
+                        <div class="stat-label">Expenses</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="net-balance">€0.00</div>
+                        <div class="stat-label">Balance</div>
+                    </div>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="total-income">€0.00</div>
-                    <div class="stat-label">Income</div>
+
+                <div class="toolbar">
+                    <div>
+                        <button class="btn" onclick="loadTransactions()">
+                            <span id="refresh-icon">🔄</span> Refresh
+                        </button>
+                        <button class="btn" onclick="openAllTransactionsModal()">📋 View All</button>
+                        <button class="btn btn-danger" onclick="clearAllTransactions()">🗑️ Clear All</button>
+                    </div>
+                    
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span style="font-size: 0.625rem; color: #6b7280;">Show:</span>
+                        <select id="page-size" onchange="changePageSize()" style="padding: 0.25rem; border-radius: 3px; border: 1px solid #d1d5db; font-size: 0.625rem;">
+                            <option value="20">20</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                        </select>
+                    </div>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="total-expenses">€0.00</div>
-                    <div class="stat-label">Expenses</div>
+                
+                <div id="transactions-list" class="transaction-list">
+                    <div style="padding: 1.5rem; text-align: center; color: #6b7280; font-size: 0.75rem;">No transactions loaded</div>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="net-balance">€0.00</div>
-                    <div class="stat-label">Balance</div>
+
+                <div id="pagination" class="pagination hidden">
+                    <div style="display: flex; align-items: center; gap: 0.375rem; font-size: 0.625rem; color: #6b7280;">
+                        <span>Showing <span id="showing-range">0</span> of <span id="total-count">0</span></span>
+                    </div>
+                    
+                    <div class="pagination-controls">
+                        <button class="btn btn-xs" id="prev-btn" onclick="previousPage()">← Prev</button>
+                        <span id="page-info" style="font-size: 0.625rem; color: #6b7280; padding: 0 0.375rem;">Page 1</span>
+                        <button class="btn btn-xs" id="next-btn" onclick="nextPage()">Next →</button>
+                    </div>
                 </div>
             </div>
 
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
-                <div>
-                    <button class="btn" onclick="loadTransactions()">
-                        <span id="refresh-icon">🔄</span> Refresh
-                    </button>
-                    <button class="btn" onclick="openAllTransactionsModal()">📋 View All</button>
-                    <button class="btn btn-danger" onclick="clearAllTransactions()">🗑️ Clear All</button>
+            <!-- Staged Transactions Tab -->
+            <div id="staged-tab" class="tab-content">
+                <div class="toolbar">
+                    <div>
+                        <button class="btn" onclick="loadStagedTransactions()">🔄 Refresh</button>
+                        <span id="staged-count" style="font-size: 0.75rem; color: #6b7280;">0 staged</span>
+                    </div>
+                    
+                    <div class="bulk-actions hidden" id="bulk-actions">
+                        <button class="btn btn-success btn-sm" onclick="bulkConfirm()">✅ Confirm Selected</button>
+                        <button class="btn btn-danger btn-sm" onclick="bulkReject()">❌ Reject Selected</button>
+                        <button class="btn btn-warning btn-sm" onclick="bulkCategorize()">🏷️ Categorize</button>
+                    </div>
                 </div>
                 
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                    <span style="font-size: 0.75rem; color: #6b7280;">Show:</span>
-                    <select id="page-size" onchange="changePageSize()" style="padding: 0.25rem; border-radius: 4px; border: 1px solid #d1d5db; font-size: 0.75rem;">
-                        <option value="20">20</option>
-                        <option value="50">50</option>
-                        <option value="100">100</option>
-                    </select>
+                <div id="staged-list" class="transaction-list">
+                    <div style="padding: 1.5rem; text-align: center; color: #6b7280; font-size: 0.75rem;">No staged transactions</div>
                 </div>
-            </div>
-            
-            <div id="transactions-list" class="transaction-list">
-                <div style="padding: 2rem; text-align: center; color: #6b7280; font-size: 0.875rem;">No transactions loaded</div>
             </div>
 
-            <!-- Pagination -->
-            <div id="pagination" class="pagination hidden">
-                <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: #6b7280;">
-                    <span>Showing <span id="showing-range">0</span> of <span id="total-count">0</span></span>
-                </div>
-                
-                <div class="pagination-controls">
-                    <button class="btn btn-sm" id="prev-btn" onclick="previousPage()">← Prev</button>
-                    <span id="page-info" style="font-size: 0.75rem; color: #6b7280; padding: 0 0.5rem;">Page 1</span>
-                    <button class="btn btn-sm" id="next-btn" onclick="nextPage()">Next →</button>
+            <!-- Analytics Tab -->
+            <div id="stats-tab" class="tab-content">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                    <div class="stat-card">
+                        <h4 style="margin-bottom: 0.5rem; color: #1f2937;">Monthly Overview</h4>
+                        <div id="monthly-stats"></div>
+                    </div>
+                    <div class="stat-card">
+                        <h4 style="margin-bottom: 0.5rem; color: #1f2937;">Top Categories</h4>
+                        <div id="category-stats"></div>
+                    </div>
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- Real-time Progress Indicator -->
+    <div id="progress-live" class="progress-live hidden">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+            <strong>Processing...</strong>
+            <span id="live-progress-percent">0%</span>
+        </div>
+        <div class="progress-bar">
+            <div class="progress-fill" id="live-progress-fill" style="width: 0%"></div>
+        </div>
+        <div id="live-progress-message" style="font-size: 0.625rem; color: #6b7280;">Initializing...</div>
     </div>
 
     <!-- All Transactions Modal -->
@@ -588,35 +748,48 @@
             </div>
             <div class="modal-body">
                 <form id="edit-form">
-                    <div class="form-group">
-                        <label>Beneficiary:</label>
-                        <input type="text" id="edit-beneficiary" required>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                        <div class="form-group">
+                            <label>Beneficiary:</label>
+                            <input type="text" id="edit-beneficiary" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Amount:</label>
+                            <input type="number" step="0.01" id="edit-amount" required>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label>Amount:</label>
-                        <input type="number" step="0.01" id="edit-amount" required>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                        <div class="form-group">
+                            <label>Date:</label>
+                            <input type="date" id="edit-date" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Category:</label>
+                            <select id="edit-category">
+                                <option value="">Select category...</option>
+                            </select>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label>Date:</label>
-                        <input type="date" id="edit-date" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Category:</label>
-                        <input type="text" id="edit-category" placeholder="e.g., Food, Transport, Entertainment">
-                    </div>
+                    
                     <div class="form-group">
                         <label>Labels (comma-separated):</label>
                         <input type="text" id="edit-labels" placeholder="e.g., work, personal, important">
                     </div>
+                    
                     <div class="form-group">
-                        <label>
-                            <input type="checkbox" id="edit-private"> Private Transaction
-                        </label>
+                        <label>Notes:</label>
+                        <input type="text" id="edit-notes" placeholder="Add notes...">
                     </div>
                     
-                    <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
-                        <button type="button" class="btn" onclick="saveTransaction()">Save Changes</button>
-                        <button type="button" class="btn" onclick="showSplitModal()">Split Transaction</button>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="edit-private">
+                        <label for="edit-private">Private Transaction</label>
+                    </div>
+                    
+                    <div style="display: flex; gap: 0.375rem; margin-top: 0.75rem; flex-wrap: wrap;">
+                        <button type="button" class="btn" onclick="saveTransaction()">💾 Save</button>
+                        <button type="button" class="btn btn-warning" onclick="showSplitModal()">✂️ Split</button>
                         <button type="button" class="btn btn-secondary" onclick="closeModal('edit-transaction-modal')">Cancel</button>
                     </div>
                 </form>
@@ -624,8 +797,40 @@
         </div>
     </div>
 
+    <!-- Split Transaction Modal -->
+    <div id="split-transaction-modal" class="modal">
+        <div class="modal-content" style="width: 90vw; max-width: 600px;">
+            <div class="modal-header">
+                <h3>Split Transaction</h3>
+                <button class="modal-close" onclick="closeModal('split-transaction-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 0.75rem;">
+                    <strong>Original Amount: €<span id="split-original-amount">0.00</span></strong>
+                    <p style="font-size: 0.75rem; color: #6b7280;">Split this transaction into multiple parts</p>
+                </div>
+                
+                <div id="split-items">
+                    <!-- Split items will be added here -->
+                </div>
+                
+                <button class="btn btn-sm" onclick="addSplitItem()">+ Add Split</button>
+                
+                <div style="margin-top: 0.75rem; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 0.75rem; color: #6b7280;">
+                        Remaining: €<span id="split-remaining">0.00</span>
+                    </span>
+                    <div>
+                        <button class="btn" onclick="applySplit()">✂️ Apply Split</button>
+                        <button class="btn btn-secondary" onclick="closeModal('split-transaction-modal')">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
-        // Configuration - API base URL
+        // Configuration
         const API_BASE = window.location.origin.includes('192.168.10.160') && window.location.pathname.includes('/proxy/8000')
             ? 'http://192.168.10.160:8680/proxy/8000'
             : window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
@@ -640,6 +845,10 @@
         let allTransactions = [];
         let filteredTransactions = [];
         let currentEditTransaction = null;
+        let stagedTransactions = [];
+        let selectedStaged = new Set();
+        let uploadWebSocket = null;
+        let categories = [];
 
         // Initialize the app
         document.addEventListener('DOMContentLoaded', function() {
@@ -663,6 +872,26 @@
                 document.getElementById('connection-status').className = 'status-indicator status-disconnected';
                 document.getElementById('connection-text').textContent = 'Disconnected';
                 console.error('Connection check failed:', error);
+            }
+        }
+
+        // Tab switching
+        function switchTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+            
+            // Load appropriate data
+            if (tabName === 'confirmed') {
+                loadTransactions();
+            } else if (tabName === 'staged') {
+                loadStagedTransactions();
+            } else if (tabName === 'stats') {
+                loadStats();
             }
         }
 
@@ -749,20 +978,19 @@
         }
 
         function showFormatsInfo(formats) {
-            let info = '<h4>Supported File Formats:</h4>';
+            let info = '<h4>Supported Formats & New Features:</h4>';
             
-            Object.entries(formats.supported_formats).forEach(([key, format]) => {
-                info += `<p><strong>${format.description}</strong><br>`;
-                info += `Extensions: ${format.extensions.join(', ')}<br>`;
-                info += `Max size: ${format.max_size_mb}MB</p>`;
+            info += '<p><strong>Enhanced Processing Pipeline:</strong><br>';
+            formats.processing_stages.forEach(stage => {
+                info += `• ${stage}<br>`;
             });
+            info += '</p>';
 
-            info += '<h4>Expected Columns:</h4>';
-            Object.entries(formats.expected_columns).forEach(([key, cols]) => {
-                info += `<p><strong>${key.replace('_', ' ').toUpperCase()}</strong><br>`;
-                info += `Required: ${cols.required.join(', ')}<br>`;
-                info += `Optional: ${cols.optional.join(', ')}</p>`;
+            info += '<p><strong>New Features:</strong><br>';
+            formats.new_features.slice(0, 4).forEach(feature => {
+                info += `• ${feature}<br>`;
             });
+            info += '</p>';
 
             showResult(info, 'result');
         }
@@ -774,7 +1002,7 @@
             document.getElementById('transactions-section').classList.remove('hidden');
             document.getElementById('user-email').textContent = document.getElementById('email').value;
             loadTransactions();
-            loadTransactionCount();
+            loadCategories();
         }
 
         function showLoggedOut() {
@@ -784,7 +1012,7 @@
             document.getElementById('transactions-section').classList.add('hidden');
         }
 
-        // File handling functions
+        // File handling with enhanced progress
         function handleDragOver(e) {
             e.preventDefault();
             document.getElementById('file-upload').classList.add('dragover');
@@ -809,7 +1037,7 @@
 
         function addFiles(files) {
             const validExtensions = ['.csv', '.xls', '.xlsx'];
-            const maxSize = 10 * 1024 * 1024; // 10MB
+            const maxSize = 25 * 1024 * 1024; // 25MB
             
             const validFiles = files.filter(file => {
                 const extension = '.' + file.name.split('.').pop().toLowerCase();
@@ -822,16 +1050,14 @@
                 }
                 
                 if (!isValidSize) {
-                    showResult(`File too large: ${file.name}. Maximum size is 10MB.`, 'error');
+                    showResult(`File too large: ${file.name}. Maximum size is 25MB.`, 'error');
                     return false;
                 }
                 
                 return true;
             });
 
-            if (validFiles.length === 0) {
-                return;
-            }
+            if (validFiles.length === 0) return;
 
             selectedFiles = [...selectedFiles, ...validFiles];
             updateFileList();
@@ -848,9 +1074,9 @@
 
             fileInfo.classList.remove('hidden');
             fileList.innerHTML = selectedFiles.map((file, index) => `
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: white; border-radius: 4px; margin-bottom: 0.5rem; border: 1px solid #e5e7eb;">
-                    <span style="font-size: 0.875rem;">📄 ${file.name} (${(file.size / 1024).toFixed(1)} KB)</span>
-                    <button class="btn btn-danger btn-sm" onclick="removeFile(${index})">Remove</button>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.375rem; background: white; border-radius: 3px; margin-bottom: 0.25rem; border: 1px solid #e5e7eb;">
+                    <span style="font-size: 0.75rem;">📄 ${file.name} (${(file.size / 1024).toFixed(1)} KB)</span>
+                    <button class="btn btn-danger btn-xs" onclick="removeFile(${index})">Remove</button>
                 </div>
             `).join('');
         }
@@ -866,7 +1092,7 @@
             document.getElementById('file-input').value = '';
         }
 
-        // Enhanced upload function with proper progress simulation
+        // Enhanced upload with real-time WebSocket progress
         async function uploadFiles() {
             if (selectedFiles.length === 0) {
                 showResult('Please select files to upload', 'error');
@@ -878,37 +1104,25 @@
             const progressContainer = document.getElementById('upload-progress');
             const progressFill = document.getElementById('progress-fill');
             const progressText = document.getElementById('progress-text');
+            const liveProgress = document.getElementById('progress-live');
             
-            // Show progress bar
+            // Show progress indicators
             progressContainer.classList.remove('hidden');
-            uploadBtn.innerHTML = '<span class="loading"></span>Uploading...';
+            liveProgress.classList.remove('hidden');
+            uploadBtn.innerHTML = '<span class="loading"></span>Processing...';
             uploadBtn.disabled = true;
 
             const resultsContainer = document.getElementById('upload-results');
             resultsContainer.innerHTML = '';
 
             for (const [index, file] of selectedFiles.entries()) {
-                // Update file progress
-                const fileProgressStart = (index / selectedFiles.length) * 100;
-                const fileProgressEnd = ((index + 1) / selectedFiles.length) * 100;
-                
-                progressText.textContent = `Processing ${file.name}...`;
-                
-                // Simulate realistic progress for large files
-                const simulateProgress = async () => {
-                    for (let i = 0; i <= 100; i += 10) {
-                        const overallProgress = fileProgressStart + (i / 100) * (fileProgressEnd - fileProgressStart);
-                        progressFill.style.width = `${overallProgress}%`;
-                        await new Promise(resolve => setTimeout(resolve, 50));
-                    }
-                };
-
                 try {
                     const formData = new FormData();
                     formData.append('file', file);
 
-                    // Start progress simulation
-                    const progressPromise = simulateProgress();
+                    // Create WebSocket connection for this file
+                    const sessionId = `upload_${Date.now()}_${index}`;
+                    await setupWebSocketProgress(sessionId);
 
                     const response = await fetch(`${API_BASE}/upload/transactions/`, {
                         method: 'POST',
@@ -916,13 +1130,14 @@
                         body: formData
                     });
 
-                    // Wait for progress simulation to complete
-                    await progressPromise;
-
                     const result = await response.json();
 
                     if (response.ok) {
                         showUploadResult(file.name, result, 'success');
+                        // Load staged transactions to show new items
+                        if (document.querySelector('#staged-tab').classList.contains('active')) {
+                            loadStagedTransactions();
+                        }
                     } else {
                         showUploadResult(file.name, result, 'error');
                     }
@@ -938,15 +1153,54 @@
             // Hide progress after 3 seconds
             setTimeout(() => {
                 progressContainer.classList.add('hidden');
+                liveProgress.classList.add('hidden');
                 progressFill.style.width = '0%';
             }, 3000);
 
             uploadBtn.innerHTML = originalText;
             uploadBtn.disabled = false;
 
-            // Refresh transactions after upload
+            // Switch to staged tab to show results
+            switchTab('staged');
+            
+            // Refresh data
             loadTransactions();
-            loadTransactionCount();
+        }
+
+        async function setupWebSocketProgress(sessionId) {
+            try {
+                const wsUrl = `${API_BASE.replace('http', 'ws')}/upload/progress/${sessionId}`;
+                uploadWebSocket = new WebSocket(wsUrl);
+                
+                uploadWebSocket.onmessage = function(event) {
+                    const data = JSON.parse(event.data);
+                    updateLiveProgress(data);
+                };
+                
+                uploadWebSocket.onerror = function(error) {
+                    console.log('WebSocket error:', error);
+                };
+                
+            } catch (error) {
+                console.log('WebSocket setup failed:', error);
+            }
+        }
+
+        function updateLiveProgress(data) {
+            const liveProgressFill = document.getElementById('live-progress-fill');
+            const liveProgressPercent = document.getElementById('live-progress-percent');
+            const liveProgressMessage = document.getElementById('live-progress-message');
+            
+            liveProgressFill.style.width = `${data.progress}%`;
+            liveProgressPercent.textContent = `${Math.round(data.progress)}%`;
+            liveProgressMessage.textContent = data.message || data.stage;
+            
+            // Also update main progress bar
+            const mainProgressFill = document.getElementById('progress-fill');
+            const mainProgressText = document.getElementById('progress-text');
+            
+            mainProgressFill.style.width = `${data.progress}%`;
+            mainProgressText.textContent = `${data.stage} - ${data.rows_processed || 0}/${data.total_rows || 0} rows`;
         }
 
         function showUploadResult(fileName, result, type) {
@@ -957,9 +1211,10 @@
             
             if (type === 'success') {
                 content += `
-                    ✅ Success: ${result.imported} imported, ${result.duplicates_skipped} duplicates skipped<br>
-                    📊 Total rows: ${result.total_rows} | Success rate: ${result.summary?.success_rate || 'N/A'}<br>
-                    ${result.errors && result.errors.length > 0 ? `⚠️ Errors: ${result.errors.slice(0, 3).join(', ')}${result.errors.length > 3 ? '...' : ''}` : ''}
+                    ✅ Success: ${result.staged_count || 0} staged, ${result.duplicate_count || 0} duplicates<br>
+                    📊 Total rows: ${result.total_rows || 0} | Format: ${result.format_detected || 'unknown'}<br>
+                    ⏱️ Processing time: ${result.processing_time_seconds || 0}s<br>
+                    ${result.errors && result.errors.length > 0 ? `⚠️ Errors: ${result.errors.slice(0, 2).join(', ')}` : ''}
                 `;
             } else {
                 content += `❌ Error: ${result.detail || result.error || 'Upload failed'}`;
@@ -968,7 +1223,497 @@
             resultsContainer.innerHTML += `<div class="${className}">${content}</div>`;
         }
 
-        // Clear all transactions function
+        // Load categories
+        async function loadCategories() {
+            if (!authToken) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/categories/`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (response.ok) {
+                    categories = await response.json();
+                    updateCategorySelects();
+                }
+            } catch (error) {
+                console.error('Error loading categories:', error);
+            }
+        }
+
+        function updateCategorySelects() {
+            const selects = ['edit-category', 'category-filter'];
+            selects.forEach(selectId => {
+                const select = document.getElementById(selectId);
+                if (select) {
+                    const currentValue = select.value;
+                    select.innerHTML = selectId === 'category-filter' 
+                        ? '<option value="">All Categories</option>' 
+                        : '<option value="">Select category...</option>';
+                    
+                    categories.forEach(cat => {
+                        select.innerHTML += `<option value="${cat.name}">${cat.icon || ''} ${cat.name}</option>`;
+                    });
+                    
+                    select.value = currentValue;
+                }
+            });
+        }
+
+        // Staged transactions management
+        async function loadStagedTransactions() {
+            if (!authToken) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/staged-transactions/?status=staged`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (response.ok) {
+                    stagedTransactions = await response.json();
+                    displayStagedTransactions();
+                    document.getElementById('staged-count').textContent = `${stagedTransactions.length} staged`;
+                }
+            } catch (error) {
+                console.error('Error loading staged transactions:', error);
+            }
+        }
+
+        function displayStagedTransactions() {
+            const container = document.getElementById('staged-list');
+            
+            if (stagedTransactions.length === 0) {
+                container.innerHTML = '<div style="padding: 1.5rem; text-align: center; color: #6b7280; font-size: 0.75rem;">No staged transactions</div>';
+                return;
+            }
+
+            container.innerHTML = stagedTransactions.map(tx => {
+                const amount = parseFloat(tx.amount);
+                const amountClass = amount >= 0 ? 'amount-positive' : 'amount-negative';
+                const amountSymbol = amount >= 0 ? '+' : '';
+                const isSelected = selectedStaged.has(tx.id);
+                
+                return `
+                    <div class="transaction-item staged-item" data-id="${tx.id}">
+                        <div style="display: flex; align-items: center; gap: 0.375rem;">
+                            <input type="checkbox" ${isSelected ? 'checked' : ''} onchange="toggleStagedSelection(${tx.id})" onclick="event.stopPropagation()">
+                            <div class="transaction-details">
+                                <div class="transaction-beneficiary">${tx.beneficiary}</div>
+                                <div class="transaction-date">${new Date(tx.transaction_date).toLocaleDateString()}</div>
+                                ${tx.suggested_category ? `<div class="transaction-category">🤖 ${tx.suggested_category}</div>` : ''}
+                                ${tx.confidence_score < 0.8 ? '<span style="color: #f59e0b; font-size: 0.625rem;">⚠️ Review needed</span>' : ''}
+                            </div>
+                        </div>
+                        <div class="transaction-amount ${amountClass}">
+                            ${amountSymbol}€${Math.abs(amount).toFixed(2)}
+                        </div>
+                        <div style="display: flex; gap: 0.25rem;">
+                            <button class="btn btn-success btn-xs" onclick="confirmStagedTransaction(${tx.id})" title="Confirm">✅</button>
+                            <button class="btn btn-warning btn-xs" onclick="editStagedTransaction(${tx.id})" title="Edit">✏️</button>
+                            <button class="btn btn-danger btn-xs" onclick="rejectStagedTransaction(${tx.id})" title="Reject">❌</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            updateBulkActionsVisibility();
+        }
+
+        function toggleStagedSelection(transactionId) {
+            if (selectedStaged.has(transactionId)) {
+                selectedStaged.delete(transactionId);
+            } else {
+                selectedStaged.add(transactionId);
+            }
+            updateBulkActionsVisibility();
+        }
+
+        function updateBulkActionsVisibility() {
+            const bulkActions = document.getElementById('bulk-actions');
+            if (selectedStaged.size > 0) {
+                bulkActions.classList.remove('hidden');
+            } else {
+                bulkActions.classList.add('hidden');
+            }
+        }
+
+        async function confirmStagedTransaction(stagedId) {
+            try {
+                const response = await fetch(`${API_BASE}/staged-transactions/${stagedId}/confirm`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (response.ok) {
+                    showResult('Transaction confirmed successfully', 'result');
+                    loadStagedTransactions();
+                    loadTransactions();
+                } else {
+                    showResult('Failed to confirm transaction', 'error');
+                }
+            } catch (error) {
+                showResult(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function rejectStagedTransaction(stagedId) {
+            try {
+                const response = await fetch(`${API_BASE}/staged-transactions/${stagedId}`, {
+                    method: 'PUT',
+                    headers: { 
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ status: 'rejected' })
+                });
+
+                if (response.ok) {
+                    showResult('Transaction rejected', 'result');
+                    loadStagedTransactions();
+                } else {
+                    showResult('Failed to reject transaction', 'error');
+                }
+            } catch (error) {
+                showResult(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Bulk operations
+        async function bulkConfirm() {
+            await performBulkAction('confirm');
+        }
+
+        async function bulkReject() {
+            await performBulkAction('reject');
+        }
+
+        async function bulkCategorize() {
+            const category = prompt('Enter category for selected transactions:');
+            if (category) {
+                await performBulkAction('update_category', { category });
+            }
+        }
+
+        async function performBulkAction(action, extra = {}) {
+            if (selectedStaged.size === 0) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/staged-transactions/bulk-action`, {
+                    method: 'POST',
+                    headers: { 
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        action,
+                        transaction_ids: Array.from(selectedStaged),
+                        ...extra
+                    })
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    showResult(`${result.message}`, 'result');
+                    selectedStaged.clear();
+                    loadStagedTransactions();
+                    if (action === 'confirm') {
+                        loadTransactions();
+                    }
+                } else {
+                    showResult('Bulk action failed', 'error');
+                }
+            } catch (error) {
+                showResult(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Load confirmed transactions with pagination
+        async function loadTransactions() {
+            if (!authToken) return;
+
+            const refreshIcon = document.getElementById('refresh-icon');
+            refreshIcon.style.animation = 'spin 1s linear infinite';
+
+            try {
+                const skip = currentPage * pageSize;
+                const response = await fetch(`${API_BASE}/transactions/?skip=${skip}&limit=${pageSize}`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    displayTransactions(result.items);
+                    totalTransactions = result.total;
+                    updatePagination();
+                    loadStatsFromAPI();
+                } else {
+                    showResult('Failed to load transactions', 'error');
+                }
+            } catch (error) {
+                showResult(`Error loading transactions: ${error.message}`, 'error');
+            } finally {
+                refreshIcon.style.animation = '';
+            }
+        }
+
+        async function loadStatsFromAPI() {
+            try {
+                const response = await fetch(`${API_BASE}/transactions/stats`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (response.ok) {
+                    const stats = await response.json();
+                    updateStatsDisplay(stats);
+                }
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+
+        function updateStatsDisplay(stats) {
+            document.getElementById('total-transactions').textContent = stats.total_transactions;
+            document.getElementById('total-income').textContent = `€${parseFloat(stats.total_income).toFixed(2)}`;
+            document.getElementById('total-expenses').textContent = `€${parseFloat(stats.total_expenses).toFixed(2)}`;
+            document.getElementById('net-balance').textContent = `€${parseFloat(stats.net_balance).toFixed(2)}`;
+            
+            // Color code the balance
+            const balanceElement = document.getElementById('net-balance');
+            balanceElement.style.color = parseFloat(stats.net_balance) >= 0 ? '#10b981' : '#ef4444';
+        }
+
+        function displayTransactions(transactions) {
+            const container = document.getElementById('transactions-list');
+            
+            if (transactions.length === 0) {
+                container.innerHTML = '<div style="padding: 1.5rem; text-align: center; color: #6b7280; font-size: 0.75rem;">No transactions found</div>';
+                return;
+            }
+
+            container.innerHTML = transactions.map(tx => {
+                const amount = parseFloat(tx.amount);
+                const amountClass = amount >= 0 ? 'amount-positive' : 'amount-negative';
+                const amountSymbol = amount >= 0 ? '+' : '';
+                
+                return `
+                    <div class="transaction-item" onclick="editTransaction(${tx.id})">
+                        <div class="transaction-details">
+                            <div class="transaction-beneficiary">${tx.beneficiary}</div>
+                            <div class="transaction-date">${new Date(tx.transaction_date).toLocaleDateString()}</div>
+                            ${tx.category ? `<div class="transaction-category">${tx.category}</div>` : ''}
+                            ${tx.is_split ? '<span style="color: #8b5cf6; font-size: 0.625rem;">✂️ Split</span>' : ''}
+                        </div>
+                        <div class="transaction-amount ${amountClass}">
+                            ${amountSymbol}€${Math.abs(amount).toFixed(2)}
+                        </div>
+                        <div>
+                            <button class="btn btn-xs" onclick="event.stopPropagation(); editTransaction(${tx.id})">Edit</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Transaction editing with enhanced modal
+        async function editTransaction(transactionId) {
+            try {
+                const response = await fetch(`${API_BASE}/transactions/${transactionId}`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (response.ok) {
+                    currentEditTransaction = await response.json();
+                    populateEditForm(currentEditTransaction);
+                    document.getElementById('edit-transaction-modal').classList.add('active');
+                } else {
+                    showResult('Failed to load transaction', 'error');
+                }
+            } catch (error) {
+                showResult(`Error loading transaction: ${error.message}`, 'error');
+            }
+        }
+
+        async function editStagedTransaction(stagedId) {
+            // Similar to editTransaction but for staged transactions
+            try {
+                const staged = stagedTransactions.find(t => t.id === stagedId);
+                if (staged) {
+                    currentEditTransaction = { ...staged, isStaged: true };
+                    populateEditForm(currentEditTransaction);
+                    document.getElementById('edit-transaction-modal').classList.add('active');
+                }
+            } catch (error) {
+                showResult(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        function populateEditForm(transaction) {
+            document.getElementById('edit-beneficiary').value = transaction.beneficiary;
+            document.getElementById('edit-amount').value = transaction.amount;
+            document.getElementById('edit-date').value = transaction.transaction_date;
+            document.getElementById('edit-category').value = transaction.category || '';
+            document.getElementById('edit-labels').value = Array.isArray(transaction.labels) ? transaction.labels.join(', ') : '';
+            document.getElementById('edit-notes').value = transaction.notes || '';
+            document.getElementById('edit-private').checked = transaction.is_private;
+        }
+
+        async function saveTransaction() {
+            if (!currentEditTransaction) return;
+
+            const updatedTransaction = {
+                beneficiary: document.getElementById('edit-beneficiary').value,
+                amount: parseFloat(document.getElementById('edit-amount').value),
+                transaction_date: document.getElementById('edit-date').value,
+                category: document.getElementById('edit-category').value || null,
+                labels: document.getElementById('edit-labels').value.split(',').map(l => l.trim()).filter(l => l),
+                is_private: document.getElementById('edit-private').checked,
+                notes: document.getElementById('edit-notes').value || null
+            };
+
+            try {
+                const isStaged = currentEditTransaction.isStaged;
+                const endpoint = isStaged 
+                    ? `${API_BASE}/staged-transactions/${currentEditTransaction.id}`
+                    : `${API_BASE}/transactions/${currentEditTransaction.id}`;
+
+                const response = await fetch(endpoint, {
+                    method: 'PUT',
+                    headers: { 
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(updatedTransaction)
+                });
+
+                if (response.ok) {
+                    showResult('Transaction updated successfully', 'result');
+                    closeModal('edit-transaction-modal');
+                    
+                    if (isStaged) {
+                        loadStagedTransactions();
+                    } else {
+                        loadTransactions();
+                    }
+                } else {
+                    const error = await response.json();
+                    showResult(`Failed to update transaction: ${error.detail}`, 'error');
+                }
+            } catch (error) {
+                showResult(`Error updating transaction: ${error.message}`, 'error');
+            }
+        }
+
+        // Enhanced split functionality
+        function showSplitModal() {
+            if (!currentEditTransaction) return;
+            
+            const originalAmount = parseFloat(currentEditTransaction.amount);
+            document.getElementById('split-original-amount').textContent = Math.abs(originalAmount).toFixed(2);
+            document.getElementById('split-transaction-modal').classList.add('active');
+            
+            // Reset split items
+            const splitItems = document.getElementById('split-items');
+            splitItems.innerHTML = '';
+            
+            // Add first split item
+            addSplitItem();
+            updateSplitRemaining();
+        }
+
+        function addSplitItem() {
+            const splitItems = document.getElementById('split-items');
+            const itemCount = splitItems.children.length;
+            
+            const splitItem = document.createElement('div');
+            splitItem.className = 'split-container';
+            splitItem.innerHTML = `
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.375rem;">
+                    <input type="number" step="0.01" placeholder="Amount" class="split-amount" oninput="updateSplitRemaining()">
+                    <input type="text" placeholder="Description" class="split-description">
+                    <select class="split-category">
+                        <option value="">Category...</option>
+                        ${categories.map(cat => `<option value="${cat.name}">${cat.name}</option>`).join('')}
+                    </select>
+                </div>
+                <button class="btn btn-danger btn-xs" onclick="removeSplitItem(this)">×</button>
+            `;
+            
+            splitItems.appendChild(splitItem);
+            updateSplitRemaining();
+        }
+
+        function removeSplitItem(button) {
+            button.parentElement.remove();
+            updateSplitRemaining();
+        }
+
+        function updateSplitRemaining() {
+            const originalAmount = Math.abs(parseFloat(currentEditTransaction.amount));
+            const splitAmounts = Array.from(document.querySelectorAll('.split-amount'))
+                .map(input => parseFloat(input.value) || 0);
+            
+            const totalSplit = splitAmounts.reduce((sum, amount) => sum + amount, 0);
+            const remaining = originalAmount - totalSplit;
+            
+            document.getElementById('split-remaining').textContent = remaining.toFixed(2);
+            document.getElementById('split-remaining').style.color = remaining < 0 ? '#ef4444' : '#6b7280';
+        }
+
+        async function applySplit() {
+            const originalAmount = Math.abs(parseFloat(currentEditTransaction.amount));
+            const splitItems = Array.from(document.getElementById('split-items').children);
+            
+            const splits = splitItems.map(item => {
+                const amount = parseFloat(item.querySelector('.split-amount').value) || 0;
+                const description = item.querySelector('.split-description').value || `${currentEditTransaction.beneficiary} (Split)`;
+                const category = item.querySelector('.split-category').value || currentEditTransaction.category;
+                
+                // Preserve original sign
+                const signedAmount = currentEditTransaction.amount < 0 ? -amount : amount;
+                
+                return {
+                    amount: signedAmount,
+                    beneficiary: description,
+                    category: category
+                };
+            });
+
+            // Validate split amounts
+            const totalSplit = splits.reduce((sum, split) => sum + Math.abs(split.amount), 0);
+            if (Math.abs(totalSplit - originalAmount) > 0.01) {
+                showResult('Split amounts must equal the original amount', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/transactions/${currentEditTransaction.id}/split`, {
+                    method: 'POST',
+                    headers: { 
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        splits: splits,
+                        reason: 'User split transaction'
+                    })
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    showResult(`Transaction split successfully into ${splits.length} parts`, 'result');
+                    closeModal('split-transaction-modal');
+                    closeModal('edit-transaction-modal');
+                    loadTransactions();
+                } else {
+                    const error = await response.json();
+                    showResult(`Failed to split transaction: ${error.detail}`, 'error');
+                }
+            } catch (error) {
+                showResult(`Error splitting transaction: ${error.message}`, 'error');
+            }
+        }
+
+        // Clear all transactions
         async function clearAllTransactions() {
             if (!authToken) return;
 
@@ -985,181 +1730,12 @@
                     const result = await response.json();
                     showResult(`✅ ${result.message}`, 'result');
                     loadTransactions();
-                    loadTransactionCount();
                 } else {
                     showResult('❌ Failed to clear transactions', 'error');
                 }
             } catch (error) {
                 showResult(`❌ Error clearing transactions: ${error.message}`, 'error');
             }
-        }
-
-        // Load transaction count for pagination
-        async function loadTransactionCount() {
-            if (!authToken) return;
-
-            try {
-                const response = await fetch(`${API_BASE}/transactions/count`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-
-                if (response.ok) {
-                    const result = await response.json();
-                    totalTransactions = result.total;
-                    updatePagination();
-                }
-            } catch (error) {
-                console.error('Error loading transaction count:', error);
-            }
-        }
-
-        // Transactions functions with pagination
-        async function loadTransactions() {
-            if (!authToken) return;
-
-            const refreshIcon = document.getElementById('refresh-icon');
-            refreshIcon.style.animation = 'spin 1s linear infinite';
-
-            try {
-                const skip = currentPage * pageSize;
-                const response = await fetch(`${API_BASE}/transactions/?skip=${skip}&limit=${pageSize}`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-
-                if (response.ok) {
-                    const transactions = await response.json();
-                    displayTransactions(transactions);
-                    updateStats(transactions);
-                    updatePagination();
-                } else {
-                    showResult('Failed to load transactions', 'error');
-                }
-            } catch (error) {
-                showResult(`Error loading transactions: ${error.message}`, 'error');
-            } finally {
-                refreshIcon.style.animation = '';
-            }
-        }
-
-        // Load all transactions for the modal
-        async function loadAllTransactions() {
-            if (!authToken) return;
-
-            try {
-                const response = await fetch(`${API_BASE}/transactions/?skip=0&limit=10000`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-
-                if (response.ok) {
-                    allTransactions = await response.json();
-                    filteredTransactions = [...allTransactions];
-                    
-                    // Populate category filter
-                    const categories = [...new Set(allTransactions.map(t => t.category).filter(c => c))];
-                    const categoryFilter = document.getElementById('category-filter');
-                    categoryFilter.innerHTML = '<option value="">All Categories</option>' + 
-                        categories.map(cat => `<option value="${cat}">${cat}</option>`).join('');
-                    
-                    displayAllTransactions();
-                } else {
-                    showResult('Failed to load all transactions', 'error');
-                }
-            } catch (error) {
-                showResult(`Error loading all transactions: ${error.message}`, 'error');
-            }
-        }
-
-        function updateStats(transactions) {
-            // For stats, we need to use all transactions, not just the current page
-            loadStatsFromAllTransactions();
-        }
-
-        async function loadStatsFromAllTransactions() {
-            if (!authToken) return;
-
-            try {
-                const response = await fetch(`${API_BASE}/transactions/?skip=0&limit=10000`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-
-                if (response.ok) {
-                    const allTx = await response.json();
-                    const total = allTx.length;
-                    const income = allTx.filter(t => parseFloat(t.amount) > 0).reduce((sum, t) => sum + parseFloat(t.amount), 0);
-                    const expenses = Math.abs(allTx.filter(t => parseFloat(t.amount) < 0).reduce((sum, t) => sum + parseFloat(t.amount), 0));
-                    const balance = income - expenses;
-
-                    document.getElementById('total-transactions').textContent = total;
-                    document.getElementById('total-income').textContent = `€${income.toFixed(2)}`;
-                    document.getElementById('total-expenses').textContent = `€${expenses.toFixed(2)}`;
-                    document.getElementById('net-balance').textContent = `€${balance.toFixed(2)}`;
-                    
-                    // Color code the balance
-                    const balanceElement = document.getElementById('net-balance');
-                    balanceElement.style.color = balance >= 0 ? '#10b981' : '#ef4444';
-                }
-            } catch (error) {
-                console.error('Error loading stats:', error);
-            }
-        }
-
-        function displayTransactions(transactions) {
-            const container = document.getElementById('transactions-list');
-            
-            if (transactions.length === 0) {
-                container.innerHTML = '<div style="padding: 2rem; text-align: center; color: #6b7280; font-size: 0.875rem;">No transactions found</div>';
-                return;
-            }
-
-            container.innerHTML = transactions.map(tx => {
-                const amount = parseFloat(tx.amount);
-                const amountClass = amount >= 0 ? 'amount-positive' : 'amount-negative';
-                const amountSymbol = amount >= 0 ? '+' : '';
-                
-                return `
-                    <div class="transaction-item" onclick="editTransaction(${tx.id})">
-                        <div class="transaction-details">
-                            <div class="transaction-beneficiary">${tx.beneficiary}</div>
-                            <div class="transaction-date">${new Date(tx.transaction_date).toLocaleDateString()}</div>
-                            ${tx.category ? `<div class="transaction-category">${tx.category}</div>` : ''}
-                        </div>
-                        <div class="transaction-amount ${amountClass}">
-                            ${amountSymbol}€${Math.abs(amount).toFixed(2)}
-                        </div>
-                        <div>
-                            <button class="btn btn-sm" onclick="event.stopPropagation(); editTransaction(${tx.id})">Edit</button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function displayAllTransactions() {
-            const container = document.getElementById('all-transactions-list');
-            
-            if (filteredTransactions.length === 0) {
-                container.innerHTML = '<div style="padding: 2rem; text-align: center; color: #6b7280;">No transactions match your filters</div>';
-                return;
-            }
-
-            container.innerHTML = filteredTransactions.map(tx => {
-                const amount = parseFloat(tx.amount);
-                const amountClass = amount >= 0 ? 'amount-positive' : 'amount-negative';
-                const amountSymbol = amount >= 0 ? '+' : '';
-                
-                return `
-                    <div class="transaction-item" onclick="editTransaction(${tx.id})">
-                        <div class="transaction-details">
-                            <div class="transaction-beneficiary">${tx.beneficiary}</div>
-                            <div class="transaction-date">${new Date(tx.transaction_date).toLocaleDateString()}</div>
-                            ${tx.category ? `<div class="transaction-category">${tx.category}</div>` : ''}
-                        </div>
-                        <div class="transaction-amount ${amountClass}">
-                            ${amountSymbol}€${Math.abs(amount).toFixed(2)}
-                        </div>
-                    </div>
-                `;
-            }).join('');
         }
 
         // Pagination functions
@@ -1213,6 +1789,70 @@
 
         function closeModal(modalId) {
             document.getElementById(modalId).classList.remove('active');
+            
+            // Clean up WebSocket if needed
+            if (uploadWebSocket) {
+                uploadWebSocket.close();
+                uploadWebSocket = null;
+            }
+        }
+
+        // Load all transactions for modal
+        async function loadAllTransactions() {
+            if (!authToken) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/transactions/?skip=0&limit=10000`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    allTransactions = result.items;
+                    filteredTransactions = [...allTransactions];
+                    
+                    // Populate category filter
+                    const categories = [...new Set(allTransactions.map(t => t.category).filter(c => c))];
+                    const categoryFilter = document.getElementById('category-filter');
+                    categoryFilter.innerHTML = '<option value="">All Categories</option>' + 
+                        categories.map(cat => `<option value="${cat}">${cat}</option>`).join('');
+                    
+                    displayAllTransactions();
+                } else {
+                    showResult('Failed to load all transactions', 'error');
+                }
+            } catch (error) {
+                showResult(`Error loading all transactions: ${error.message}`, 'error');
+            }
+        }
+
+        function displayAllTransactions() {
+            const container = document.getElementById('all-transactions-list');
+            
+            if (filteredTransactions.length === 0) {
+                container.innerHTML = '<div style="padding: 1.5rem; text-align: center; color: #6b7280;">No transactions match your filters</div>';
+                return;
+            }
+
+            container.innerHTML = filteredTransactions.map(tx => {
+                const amount = parseFloat(tx.amount);
+                const amountClass = amount >= 0 ? 'amount-positive' : 'amount-negative';
+                const amountSymbol = amount >= 0 ? '+' : '';
+                
+                return `
+                    <div class="transaction-item" onclick="editTransaction(${tx.id})">
+                        <div class="transaction-details">
+                            <div class="transaction-beneficiary">${tx.beneficiary}</div>
+                            <div class="transaction-date">${new Date(tx.transaction_date).toLocaleDateString()}</div>
+                            ${tx.category ? `<div class="transaction-category">${tx.category}</div>` : ''}
+                            ${tx.is_split ? '<span style="color: #8b5cf6; font-size: 0.625rem;">✂️ Split</span>' : ''}
+                        </div>
+                        <div class="transaction-amount ${amountClass}">
+                            ${amountSymbol}€${Math.abs(amount).toFixed(2)}
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
 
         function filterTransactions() {
@@ -1233,129 +1873,72 @@
             displayAllTransactions();
         }
 
-        // Edit transaction functions
-        async function editTransaction(transactionId) {
+        // Analytics/Stats functions
+        async function loadStats() {
+            if (!authToken) return;
+
             try {
-                const response = await fetch(`${API_BASE}/transactions/${transactionId}`, {
+                const response = await fetch(`${API_BASE}/transactions/stats`, {
                     headers: { 'Authorization': `Bearer ${authToken}` }
                 });
 
                 if (response.ok) {
-                    currentEditTransaction = await response.json();
-                    populateEditForm(currentEditTransaction);
-                    document.getElementById('edit-transaction-modal').classList.add('active');
-                } else {
-                    showResult('Failed to load transaction', 'error');
+                    const stats = await response.json();
+                    displayStats(stats);
                 }
             } catch (error) {
-                showResult(`Error loading transaction: ${error.message}`, 'error');
+                console.error('Error loading stats:', error);
             }
         }
 
-        function populateEditForm(transaction) {
-            document.getElementById('edit-beneficiary').value = transaction.beneficiary;
-            document.getElementById('edit-amount').value = transaction.amount;
-            document.getElementById('edit-date').value = transaction.transaction_date;
-            document.getElementById('edit-category').value = transaction.category || '';
-            document.getElementById('edit-labels').value = Array.isArray(transaction.labels) ? transaction.labels.join(', ') : '';
-            document.getElementById('edit-private').checked = transaction.is_private;
-        }
-
-        async function saveTransaction() {
-            if (!currentEditTransaction) return;
-
-            const updatedTransaction = {
-                beneficiary: document.getElementById('edit-beneficiary').value,
-                amount: parseFloat(document.getElementById('edit-amount').value),
-                transaction_date: document.getElementById('edit-date').value,
-                category: document.getElementById('edit-category').value || null,
-                labels: document.getElementById('edit-labels').value.split(',').map(l => l.trim()).filter(l => l),
-                is_private: document.getElementById('edit-private').checked,
-                raw_data: currentEditTransaction.raw_data
-            };
-
-            try {
-                const response = await fetch(`${API_BASE}/transactions/${currentEditTransaction.id}`, {
-                    method: 'PUT',
-                    headers: { 
-                        'Authorization': `Bearer ${authToken}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(updatedTransaction)
-                });
-
-                if (response.ok) {
-                    showResult('Transaction updated successfully', 'result');
-                    closeModal('edit-transaction-modal');
-                    loadTransactions();
-                    loadTransactionCount();
-                } else {
-                    const error = await response.json();
-                    showResult(`Failed to update transaction: ${error.detail}`, 'error');
-                }
-            } catch (error) {
-                showResult(`Error updating transaction: ${error.message}`, 'error');
-            }
-        }
-
-        function showSplitModal() {
-            const amount = parseFloat(document.getElementById('edit-amount').value);
-            const splitAmount = prompt(`Split this transaction. Enter the amount for the first part (total: €${amount}):`);
+        function displayStats(stats) {
+            // Monthly stats
+            const monthlyStats = document.getElementById('monthly-stats');
+            const monthlyData = Object.entries(stats.monthly_summary || {})
+                .slice(-6) // Last 6 months
+                .map(([month, data]) => {
+                    const income = parseFloat(data.income || 0);
+                    const expenses = parseFloat(data.expenses || 0);
+                    const net = income - expenses;
+                    return `
+                        <div style="margin-bottom: 0.5rem; padding: 0.25rem; border-left: 3px solid ${net >= 0 ? '#10b981' : '#ef4444'};">
+                            <div style="font-weight: 600; font-size: 0.75rem;">${month}</div>
+                            <div style="font-size: 0.625rem; color: #6b7280;">
+                                Income: €${income.toFixed(2)} | Expenses: €${expenses.toFixed(2)}
+                            </div>
+                            <div style="font-size: 0.625rem; color: ${net >= 0 ? '#10b981' : '#ef4444'};">
+                                Net: €${net.toFixed(2)}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
             
-            if (splitAmount && !isNaN(splitAmount)) {
-                const firstAmount = parseFloat(splitAmount);
-                const secondAmount = amount - firstAmount;
-                
-                if (secondAmount <= 0) {
-                    showResult('Split amount must be less than the total amount', 'error');
-                    return;
-                }
-                
-                // Update current transaction with first amount
-                document.getElementById('edit-amount').value = firstAmount;
-                
-                // Create second transaction
-                const secondTransaction = {
-                    beneficiary: document.getElementById('edit-beneficiary').value + ' (Split)',
-                    amount: secondAmount,
-                    transaction_date: document.getElementById('edit-date').value,
-                    category: document.getElementById('edit-category').value || null,
-                    labels: document.getElementById('edit-labels').value.split(',').map(l => l.trim()).filter(l => l),
-                    is_private: document.getElementById('edit-private').checked,
-                    raw_data: null
-                };
-                
-                // Save both transactions
-                saveSplitTransactions(secondTransaction);
-            }
-        }
+            monthlyStats.innerHTML = monthlyData || '<div style="color: #6b7280; font-size: 0.75rem;">No data available</div>';
 
-        async function saveSplitTransactions(secondTransaction) {
-            try {
-                // Save the updated first transaction
-                await saveTransaction();
-                
-                // Create the second transaction
-                const response = await fetch(`${API_BASE}/transactions/`, {
-                    method: 'POST',
-                    headers: { 
-                        'Authorization': `Bearer ${authToken}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(secondTransaction)
-                });
-
-                if (response.ok) {
-                    showResult('Transaction split successfully', 'result');
-                    loadTransactions();
-                    loadTransactionCount();
-                } else {
-                    const error = await response.json();
-                    showResult(`Failed to create split transaction: ${error.detail}`, 'error');
-                }
-            } catch (error) {
-                showResult(`Error splitting transaction: ${error.message}`, 'error');
-            }
+            // Category stats
+            const categoryStats = document.getElementById('category-stats');
+            const categoryData = Object.entries(stats.categories_breakdown || {})
+                .sort(([,a], [,b]) => parseFloat(b) - parseFloat(a))
+                .slice(0, 5) // Top 5 categories
+                .map(([category, amount]) => {
+                    const percentage = (parseFloat(amount) / parseFloat(stats.total_expenses || 1)) * 100;
+                    return `
+                        <div style="margin-bottom: 0.375rem;">
+                            <div style="display: flex; justify-content: space-between; font-size: 0.75rem;">
+                                <span>${category}</span>
+                                <span>€${parseFloat(amount).toFixed(2)}</span>
+                            </div>
+                            <div style="background: #e5e7eb; height: 4px; border-radius: 2px; overflow: hidden;">
+                                <div style="background: #667eea; height: 100%; width: ${percentage}%; transition: width 0.3s;"></div>
+                            </div>
+                            <div style="font-size: 0.625rem; color: #6b7280; margin-top: 0.125rem;">
+                                ${percentage.toFixed(1)}% of expenses
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            
+            categoryStats.innerHTML = categoryData || '<div style="color: #6b7280; font-size: 0.75rem;">No categories found</div>';
         }
 
         // Utility functions
@@ -1377,9 +1960,26 @@
         // Close modals when clicking outside
         document.addEventListener('click', function(e) {
             if (e.target.classList.contains('modal')) {
-                e.target.classList.remove('active');
+                closeModal(e.target.id);
             }
         });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                // Close any open modal
+                document.querySelectorAll('.modal.active').forEach(modal => {
+                    closeModal(modal.id);
+                });
+            }
+        });
+
+        // Auto-refresh staged transactions every 30 seconds
+        setInterval(() => {
+            if (document.querySelector('#staged-tab').classList.contains('active')) {
+                loadStagedTransactions();
+            }
+        }, 30000);
     </script>
 </body>
 </html>
