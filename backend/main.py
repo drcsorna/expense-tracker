@@ -1,669 +1,566 @@
 # backend/main.py
-# Enhanced FastAPI app with ML categorization and duplicate management
+# Enhanced FastAPI application with all 2025 features
 
-from datetime import datetime, timedelta, date
-from typing import List, Optional, Dict, Any
-import os
-from decimal import Decimal
-
-from fastapi import Depends, FastAPI, HTTPException, status, Query, BackgroundTasks
+from fastapi import FastAPI, Depends, HTTPException, status, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import OAuth2PasswordRequestForm
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, func, desc, asc
+from datetime import datetime, timedelta
+import json
+import asyncio
+from typing import Dict, List, Optional, Any
 
-# Import our modules
-from . import models
-from . import schemas
-from .models import engine, get_db, create_default_categories
-from .auth import get_current_user, verify_password, get_password_hash, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
+# Import modules
+from . import models, auth
+from .websocket_manager import ConnectionManager
 
-# Import routers
-from .routers import upload, categorization, duplicates
+# Import routers (create them first or comment out if not ready)
+try:
+    from .routers import upload, categorization, duplicates, transactions
+    ROUTERS_AVAILABLE = True
+except ImportError:
+    print("⚠️  Router files not found - creating basic upload router")
+    ROUTERS_AVAILABLE = False
 
-# --- Application Setup ---
-models.Base.metadata.create_all(bind=engine)
-
+# Initialize FastAPI app
 app = FastAPI(
-    title="Expense Tracker API 3.0",
-    description="Intelligent expense tracking with ML-powered categorization and duplicate management",
+    title="Expense Tracker 3.0",
+    description="Smart financial management with ML-powered categorization",
     version="3.0.0"
 )
 
-# --- CORS Middleware ---
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:8080"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# --- Static Files ---
-frontend_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
-if os.path.exists(frontend_path):
-    app.mount("/static", StaticFiles(directory=frontend_path), name="static")
+# Security
+security = HTTPBearer()
 
-# --- Include Routers ---
-app.include_router(upload.router)
-app.include_router(categorization.router)
-app.include_router(duplicates.router)
+# WebSocket manager
+manager = ConnectionManager()
 
-# --- Core API Endpoints ---
+# Create database tables
+models.create_tables()
 
-@app.get("/")
-def read_root():
-    """Root endpoint - serve frontend or API info."""
-    frontend_index = os.path.join(frontend_path, "index.html")
-    if os.path.exists(frontend_index):
-        return FileResponse(frontend_index)
+# Include routers
+if ROUTERS_AVAILABLE:
+    app.include_router(upload.router, prefix="/upload", tags=["upload"])
+    app.include_router(categorization.router, prefix="/categorization", tags=["categorization"])
+    app.include_router(duplicates.router, prefix="/duplicates", tags=["duplicates"])
+    app.include_router(transactions.router, prefix="/transactions", tags=["transactions"])
     
-    return {
-        "message": "Welcome to the Expense Tracker API v3.0",
-        "version": "3.0.0",
-        "status": "running",
-        "features": [
-            "ML-powered categorization",
-            "Smart duplicate detection", 
-            "Category bootstrap learning",
-            "Real-time progress tracking",
-            "Advanced filtering",
-            "Dark/Light theme support"
-        ]
-    }
+    # Set WebSocket manager for upload router
+    upload.set_websocket_manager(manager)
+else:
+    # Basic upload router fallback
+    from fastapi import APIRouter
+    basic_router = APIRouter()
+    
+    @basic_router.get("/staged/")
+    async def get_staged_basic():
+        return []
+    
+    app.include_router(basic_router, prefix="/upload", tags=["upload"])
 
-@app.get("/app")
-def serve_frontend():
-    """Serve the frontend application."""
-    frontend_index = os.path.join(frontend_path, "index.html")
-    if os.path.exists(frontend_index):
-        return FileResponse(frontend_index)
-    else:
-        raise HTTPException(status_code=404, detail="Frontend not found")
-
-@app.get("/health")
-def health_check():
-    """Enhanced health check endpoint."""
-    return {
-        "status": "healthy",
-        "timestamp": datetime.utcnow().isoformat(),
-        "service": "expense-tracker-api",
-        "version": "3.0.0",
-        "features": {
-            "ml_categorization": True,
-            "duplicate_detection": True,
-            "real_time_progress": True,
-            "category_bootstrap": True
-        }
-    }
-
-# --- Authentication Endpoints ---
-
-@app.post("/token", response_model=schemas.Token)
-async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    """Login and get access token."""
-    user = db.query(models.User).filter(models.User.email == form_data.username).first()
-    if not user or not verify_password(form_data.password, user.hashed_password):
+# ===== DEPENDENCY FUNCTIONS =====
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(models.get_db)
+):
+    """Get current authenticated user."""
+    try:
+        payload = auth.verify_token(credentials.credentials)
+        user_email = payload.get("sub")
+        if user_email is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authentication credentials"
+            )
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"},
+            detail="Invalid authentication credentials"
         )
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user.email}, expires_delta=access_token_expires
-    )
-    return {"access_token": access_token, "token_type": "bearer"}
-
-@app.post("/users/", response_model=schemas.User)
-def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
-    """Create a new user with default categories."""
-    db_user = db.query(models.User).filter(models.User.email == user.email).first()
-    if db_user:
-        raise HTTPException(status_code=400, detail="Email already registered")
     
-    hashed_password = get_password_hash(user.password)
-    db_user = models.User(email=user.email, hashed_password=hashed_password)
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    
-    # Create default categories for the new user
-    create_default_categories(db_user.id, db)
-    
-    return db_user
-
-# --- Transaction Endpoints (Confirmed) ---
-
-@app.get("/transactions/", response_model=schemas.PaginatedResponse)
-def read_transactions(
-    skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=20, ge=1, le=100),
-    search: Optional[str] = Query(default=None),
-    category: Optional[str] = Query(default=None),
-    date_from: Optional[str] = Query(default=None),
-    date_to: Optional[str] = Query(default=None),
-    is_private: Optional[bool] = Query(default=None),
-    sort_by: str = Query(default="transaction_date"),
-    sort_order: str = Query(default="desc"),
-    current_user: schemas.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Get paginated transactions with advanced filtering."""
-    
-    # Build query
-    query = db.query(models.Transaction).filter(models.Transaction.owner_id == current_user.id)
-    
-    # Apply filters
-    if search:
-        query = query.filter(models.Transaction.beneficiary.ilike(f"%{search}%"))
-    
-    if category:
-        query = query.filter(models.Transaction.category == category)
-    
-    if date_from:
-        try:
-            date_from_obj = datetime.strptime(date_from, "%Y-%m-%d").date()
-            query = query.filter(models.Transaction.transaction_date >= date_from_obj)
-        except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid date_from format. Use YYYY-MM-DD")
-    
-    if date_to:
-        try:
-            date_to_obj = datetime.strptime(date_to, "%Y-%m-%d").date()
-            query = query.filter(models.Transaction.transaction_date <= date_to_obj)
-        except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid date_to format. Use YYYY-MM-DD")
-    
-    if is_private is not None:
-        query = query.filter(models.Transaction.is_private == is_private)
-    
-    # Apply sorting
-    sort_column = getattr(models.Transaction, sort_by, models.Transaction.transaction_date)
-    if sort_order.lower() == "desc":
-        query = query.order_by(desc(sort_column))
-    else:
-        query = query.order_by(asc(sort_column))
-    
-    # Get total count
-    total = query.count()
-    
-    # Apply pagination
-    transactions = query.offset(skip).limit(limit).all()
-    
-    return schemas.PaginatedResponse(
-        items=transactions,
-        total=total,
-        skip=skip,
-        limit=limit,
-        page=skip // limit + 1,
-        pages=(total + limit - 1) // limit
-    )
-
-@app.get("/transactions/{transaction_id}", response_model=schemas.Transaction)
-def read_transaction(
-    transaction_id: int,
-    current_user: schemas.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Get a specific transaction."""
-    transaction = db.query(models.Transaction).filter(
-        models.Transaction.id == transaction_id,
-        models.Transaction.owner_id == current_user.id
-    ).first()
-    
-    if not transaction:
-        raise HTTPException(status_code=404, detail="Transaction not found")
-    
-    return transaction
-
-@app.put("/transactions/{transaction_id}", response_model=schemas.Transaction)
-def update_transaction(
-    transaction_id: int,
-    transaction_update: schemas.TransactionUpdate,
-    current_user: schemas.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Update a transaction."""
-    transaction = db.query(models.Transaction).filter(
-        models.Transaction.id == transaction_id,
-        models.Transaction.owner_id == current_user.id
-    ).first()
-    
-    if not transaction:
-        raise HTTPException(status_code=404, detail="Transaction not found")
-    
-    # Update fields
-    for field, value in transaction_update.dict(exclude_unset=True).items():
-        setattr(transaction, field, value)
-    
-    transaction.updated_at = datetime.utcnow()
-    db.commit()
-    db.refresh(transaction)
-    
-    return transaction
-
-@app.delete("/transactions/{transaction_id}")
-def delete_transaction(
-    transaction_id: int,
-    current_user: schemas.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Delete a transaction."""
-    transaction = db.query(models.Transaction).filter(
-        models.Transaction.id == transaction_id,
-        models.Transaction.owner_id == current_user.id
-    ).first()
-    
-    if not transaction:
-        raise HTTPException(status_code=404, detail="Transaction not found")
-    
-    db.delete(transaction)
-    db.commit()
-    
-    return {"message": "Transaction deleted successfully"}
-
-# --- Staged Transaction Endpoints ---
-
-@app.get("/staged-transactions/", response_model=List[schemas.StagedTransaction])
-def read_staged_transactions(
-    current_user: schemas.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Get all staged transactions for review."""
-    staged_transactions = db.query(models.StagedTransaction).filter(
-        models.StagedTransaction.user_id == current_user.id,
-        models.StagedTransaction.status == models.TransactionStatus.STAGED
-    ).order_by(desc(models.StagedTransaction.created_at)).all()
-    
-    return staged_transactions
-
-@app.get("/staged-transactions/{staged_id}", response_model=schemas.StagedTransaction)
-def read_staged_transaction(
-    staged_id: int,
-    current_user: schemas.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Get a specific staged transaction."""
-    staged_transaction = db.query(models.StagedTransaction).filter(
-        models.StagedTransaction.id == staged_id,
-        models.StagedTransaction.user_id == current_user.id
-    ).first()
-    
-    if not staged_transaction:
-        raise HTTPException(status_code=404, detail="Staged transaction not found")
-    
-    return staged_transaction
-
-@app.put("/staged-transactions/{staged_id}", response_model=schemas.StagedTransaction)
-def update_staged_transaction(
-    staged_id: int,
-    transaction_update: schemas.StagedTransactionUpdate,
-    current_user: schemas.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Update a staged transaction."""
-    staged_transaction = db.query(models.StagedTransaction).filter(
-        models.StagedTransaction.id == staged_id,
-        models.StagedTransaction.user_id == current_user.id
-    ).first()
-    
-    if not staged_transaction:
-        raise HTTPException(status_code=404, detail="Staged transaction not found")
-    
-    # Update fields
-    for field, value in transaction_update.dict(exclude_unset=True).items():
-        setattr(staged_transaction, field, value)
-    
-    db.commit()
-    db.refresh(staged_transaction)
-    
-    return staged_transaction
-
-@app.post("/staged-transactions/bulk-action")
-def bulk_action_staged_transactions(
-    bulk_action: schemas.BulkStagedAction,
-    current_user: schemas.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Perform bulk actions on staged transactions."""
-    
-    # Get all specified staged transactions
-    staged_transactions = db.query(models.StagedTransaction).filter(
-        models.StagedTransaction.id.in_(bulk_action.transaction_ids),
-        models.StagedTransaction.user_id == current_user.id,
-        models.StagedTransaction.status == models.TransactionStatus.STAGED
-    ).all()
-    
-    if len(staged_transactions) != len(bulk_action.transaction_ids):
+    user = db.query(models.User).filter(models.User.email == user_email).first()
+    if user is None:
         raise HTTPException(
-            status_code=404, 
-            detail="Some transactions not found or already processed"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found"
         )
     
-    processed_count = 0
-    failed_count = 0
-    errors = []
+    # Update last login
+    user.last_login = datetime.utcnow()
+    db.commit()
+    
+    return user
+
+# ===== AUTHENTICATION ENDPOINTS =====
+@app.post("/auth/register")
+async def register(user_data: dict, db: Session = Depends(models.get_db)):
+    """Register a new user with default categories."""
+    email = user_data.get("email")
+    password = user_data.get("password")
+    
+    if not email or not password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email and password are required"
+        )
+    
+    # Check if user exists
+    existing_user = db.query(models.User).filter(models.User.email == email).first()
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User already exists"
+        )
+    
+    # Create user
+    hashed_password = auth.get_password_hash(password)
+    new_user = models.User(
+        email=email,
+        hashed_password=hashed_password,
+        created_at=datetime.utcnow()
+    )
+    
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    
+    # Create default categories
+    await models.create_default_categories(db, new_user.id)
+    
+    return {"message": "User registered successfully", "user_id": new_user.id}
+
+@app.post("/auth/login")
+async def login(form_data: dict, db: Session = Depends(models.get_db)):
+    """Login user and return access token."""
+    email = form_data.get("username")  # FastAPI OAuth2 uses 'username'
+    password = form_data.get("password")
+    
+    if not email or not password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email and password are required"
+        )
+    
+    # Verify user
+    user = db.query(models.User).filter(models.User.email == email).first()
+    if not user or not auth.verify_password(password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials"
+        )
+    
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User account is deactivated"
+        )
+    
+    # Create access token
+    access_token = auth.create_access_token(data={"sub": user.email})
+    
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "created_at": user.created_at.isoformat()
+        }
+    }
+
+# ===== WEBSOCKET ENDPOINTS =====
+@app.websocket("/ws/{session_id}")
+async def websocket_endpoint(websocket: WebSocket, session_id: str, token: str = None):
+    """WebSocket endpoint for real-time progress updates."""
+    if not token:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
+    
+    # Verify token
+    try:
+        payload = auth.verify_token(token)
+        user_email = payload.get("sub")
+        if not user_email:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+    except Exception:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
+    
+    await manager.connect(websocket, session_id)
     
     try:
-        for staged_transaction in staged_transactions:
-            try:
-                action_data = bulk_action
-                
-                if action_data.action == "confirm":
-                    # Create confirmed transaction
-                    confirmed_transaction = models.Transaction(
-                        transaction_date=staged_transaction.transaction_date,
-                        beneficiary=staged_transaction.beneficiary,
-                        amount=staged_transaction.amount,
-                        category=staged_transaction.category,
-                        labels=staged_transaction.labels,
-                        is_private=staged_transaction.is_private,
-                        notes=staged_transaction.notes,
-                        owner_id=current_user.id,
-                        source_upload_session_id=staged_transaction.upload_session_id,
-                        confirmed_at=datetime.utcnow(),
-                        raw_data=staged_transaction.raw_transaction_data,
-                        created_at=datetime.utcnow(),
-                        updated_at=datetime.utcnow()
-                    )
-                    db.add(confirmed_transaction)
-                    db.flush()
-                    
-                    staged_transaction.status = models.TransactionStatus.CONFIRMED
-                    staged_transaction.confirmed_transaction_id = confirmed_transaction.id
-                    
-                elif action_data.action == "reject":
-                    staged_transaction.status = models.TransactionStatus.REJECTED
-                    
-                elif action_data.action == "update_category":
-                    if action_data.category:
-                        staged_transaction.category = action_data.category
-                        
-                        # Smart recategorization: find similar transactions
-                        similar_transactions = db.query(models.StagedTransaction).filter(
-                            models.StagedTransaction.user_id == current_user.id,
-                            models.StagedTransaction.beneficiary.ilike(f"%{staged_transaction.beneficiary}%"),
-                            models.StagedTransaction.id != staged_transaction.id,
-                            models.StagedTransaction.status == models.TransactionStatus.STAGED
-                        ).all()
-                        
-                        # Also update confirmed transactions with similar beneficiaries
-                        similar_confirmed = db.query(models.Transaction).filter(
-                            models.Transaction.owner_id == current_user.id,
-                            models.Transaction.beneficiary.ilike(f"%{staged_transaction.beneficiary}%")
-                        ).all()
-                        
-                        for similar in similar_transactions:
-                            similar.category = action_data.category
-                            similar.suggested_category = action_data.category
-                        
-                        for similar in similar_confirmed:
-                            similar.category = action_data.category
-                            similar.updated_at = datetime.utcnow()
-                    
-                    if action_data.notes:
-                        staged_transaction.notes = action_data.notes
-                
-                staged_transaction.reviewed_at = datetime.utcnow()
-                processed_count += 1
-                
-            except Exception as e:
-                failed_count += 1
-                errors.append(f"Transaction {staged_transaction.id}: {str(e)}")
-        
-        db.commit()
-        
-        return {
-            "success": processed_count > 0,
-            "message": f"Processed {processed_count} transactions, {failed_count} failed",
-            "processed_count": processed_count,
-            "failed_count": failed_count,
-            "errors": errors
-        }
-        
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Bulk action failed: {str(e)}")
+        while True:
+            # Keep connection alive with ping/pong
+            data = await websocket.receive_text()
+            message = json.loads(data)
+            
+            if message.get("type") == "ping":
+                await websocket.send_text(json.dumps({"type": "pong"}))
+            
+    except WebSocketDisconnect:
+        manager.disconnect(session_id)
 
-# --- Category Endpoints ---
-
-@app.get("/categories/", response_model=List[schemas.CategoryWithStats])
-def read_categories(
-    current_user: schemas.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+# ===== USER PREFERENCES =====
+@app.get("/user/preferences")
+async def get_user_preferences(
+    current_user: models.User = Depends(get_current_user)
 ):
-    """Get all categories with transaction counts."""
-    categories = db.query(models.Category).filter(
-        models.Category.user_id == current_user.id
-    ).order_by(models.Category.name).all()
-    
-    # Add transaction counts
-    result = []
-    for category in categories:
-        transaction_count = db.query(models.Transaction).filter(
-            models.Transaction.owner_id == current_user.id,
-            models.Transaction.category == category.name
-        ).count()
-        
-        category_dict = schemas.CategoryWithStats.from_orm(category).dict()
-        category_dict['transaction_count'] = transaction_count
-        result.append(category_dict)
-    
-    return result
+    """Get user preferences."""
+    return {
+        "preferences": current_user.preferences,
+        "created_at": current_user.created_at.isoformat(),
+        "last_login": current_user.last_login.isoformat() if current_user.last_login else None
+    }
 
-@app.post("/categories/", response_model=schemas.Category)
-def create_category(
-    category: schemas.CategoryCreate,
-    current_user: schemas.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+@app.put("/user/preferences")
+async def update_user_preferences(
+    preferences: dict,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(models.get_db)
 ):
-    """Create a new category."""
-    # Check if category already exists
-    existing = db.query(models.Category).filter(
-        models.Category.user_id == current_user.id,
-        models.Category.name == category.name
-    ).first()
+    """Update user preferences."""
+    # Merge with existing preferences
+    current_prefs = current_user.preferences or {}
     
-    if existing:
-        raise HTTPException(status_code=400, detail="Category already exists")
+    # Update specific sections
+    for section, values in preferences.items():
+        if section in current_prefs:
+            current_prefs[section].update(values)
+        else:
+            current_prefs[section] = values
     
-    db_category = models.Category(
-        **category.dict(),
-        user_id=current_user.id
-    )
-    db.add(db_category)
+    current_user.preferences = current_prefs
     db.commit()
-    db.refresh(db_category)
     
-    return db_category
+    return {"message": "Preferences updated successfully", "preferences": current_prefs}
 
-@app.put("/categories/{category_id}", response_model=schemas.Category)
-def update_category(
-    category_id: int,
-    category_update: schemas.CategoryUpdate,
-    current_user: schemas.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+# ===== DASHBOARD ENDPOINTS =====
+@app.get("/dashboard/overview")
+async def get_dashboard_overview(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(models.get_db)
 ):
-    """Update a category and all associated transactions."""
-    category = db.query(models.Category).filter(
-        models.Category.id == category_id,
-        models.Category.user_id == current_user.id
-    ).first()
+    """Get dashboard overview with key metrics."""
+    from sqlalchemy import func, extract
+    from datetime import date, timedelta
     
-    if not category:
-        raise HTTPException(status_code=404, detail="Category not found")
+    # Transaction counts
+    total_transactions = db.query(func.count(models.Transaction.id)).filter(
+        models.Transaction.owner_id == current_user.id
+    ).scalar()
     
-    old_name = category.name
+    staged_count = db.query(func.count(models.StagedTransaction.id)).filter(
+        models.StagedTransaction.owner_id == current_user.id
+    ).scalar()
     
-    # Update category
-    for field, value in category_update.dict(exclude_unset=True).items():
-        setattr(category, field, value)
-    
-    # If name changed, update all transactions
-    if category_update.name and category_update.name != old_name:
-        # Update confirmed transactions
-        db.query(models.Transaction).filter(
-            models.Transaction.owner_id == current_user.id,
-            models.Transaction.category == old_name
-        ).update({"category": category_update.name, "updated_at": datetime.utcnow()})
-        
-        # Update staged transactions
-        db.query(models.StagedTransaction).filter(
-            models.StagedTransaction.user_id == current_user.id,
-            models.StagedTransaction.category == old_name
-        ).update({"category": category_update.name})
-    
-    db.commit()
-    db.refresh(category)
-    
-    return category
-
-@app.delete("/categories/{category_id}")
-def delete_category(
-    category_id: int,
-    current_user: schemas.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Delete a category."""
-    category = db.query(models.Category).filter(
-        models.Category.id == category_id,
-        models.Category.user_id == current_user.id
-    ).first()
-    
-    if not category:
-        raise HTTPException(status_code=404, detail="Category not found")
-    
-    # Check if category is in use
-    transaction_count = db.query(models.Transaction).filter(
+    # Financial totals
+    income = db.query(func.sum(models.Transaction.amount)).filter(
         models.Transaction.owner_id == current_user.id,
-        models.Transaction.category == category.name
-    ).count()
+        models.Transaction.amount > 0
+    ).scalar() or 0
     
-    if transaction_count > 0:
-        raise HTTPException(
-            status_code=400, 
-            detail=f"Cannot delete category '{category.name}' - it's used by {transaction_count} transactions"
-        )
+    expenses = db.query(func.sum(models.Transaction.amount)).filter(
+        models.Transaction.owner_id == current_user.id,
+        models.Transaction.amount < 0
+    ).scalar() or 0
     
-    db.delete(category)
-    db.commit()
+    # This month's data
+    current_month = date.today().replace(day=1)
+    month_transactions = db.query(func.count(models.Transaction.id)).filter(
+        models.Transaction.owner_id == current_user.id,
+        models.Transaction.transaction_date >= current_month
+    ).scalar()
     
-    return {"message": f"Category '{category.name}' deleted successfully"}
-
-# --- Analytics Endpoints ---
-
-@app.get("/analytics/summary")
-def get_analytics_summary(
-    date_from: Optional[str] = Query(default=None),
-    date_to: Optional[str] = Query(default=None),
-    current_user: schemas.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Get financial analytics summary."""
+    month_income = db.query(func.sum(models.Transaction.amount)).filter(
+        models.Transaction.owner_id == current_user.id,
+        models.Transaction.transaction_date >= current_month,
+        models.Transaction.amount > 0
+    ).scalar() or 0
     
-    # Build base query
-    query = db.query(models.Transaction).filter(models.Transaction.owner_id == current_user.id)
+    month_expenses = db.query(func.sum(models.Transaction.amount)).filter(
+        models.Transaction.owner_id == current_user.id,
+        models.Transaction.transaction_date >= current_month,
+        models.Transaction.amount < 0
+    ).scalar() or 0
     
-    # Apply date filters
-    if date_from:
-        try:
-            date_from_obj = datetime.strptime(date_from, "%Y-%m-%d").date()
-            query = query.filter(models.Transaction.transaction_date >= date_from_obj)
-        except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid date_from format. Use YYYY-MM-DD")
-    
-    if date_to:
-        try:
-            date_to_obj = datetime.strptime(date_to, "%Y-%m-%d").date()
-            query = query.filter(models.Transaction.transaction_date <= date_to_obj)
-        except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid date_to format. Use YYYY-MM-DD")
-    
-    # Calculate summary statistics
-    total_transactions = query.count()
-    
-    # Income and expenses
-    income_sum = query.filter(models.Transaction.amount > 0).with_entities(
-        func.sum(models.Transaction.amount)
-    ).scalar() or Decimal('0.00')
-    
-    expense_sum = query.filter(models.Transaction.amount < 0).with_entities(
-        func.sum(models.Transaction.amount)
-    ).scalar() or Decimal('0.00')
-    
-    # Top categories
-    category_stats = query.filter(
-        models.Transaction.category.isnot(None)
-    ).with_entities(
+    # Category breakdown
+    category_stats = db.query(
         models.Transaction.category,
         func.count(models.Transaction.id).label('count'),
         func.sum(models.Transaction.amount).label('total')
-    ).group_by(models.Transaction.category).order_by(desc('count')).limit(10).all()
+    ).filter(
+        models.Transaction.owner_id == current_user.id,
+        models.Transaction.category.isnot(None)
+    ).group_by(models.Transaction.category).all()
     
-    # Monthly trends (last 12 months)
-    monthly_stats = query.with_entities(
-        func.date_trunc('month', models.Transaction.transaction_date).label('month'),
-        func.count(models.Transaction.id).label('count'),
-        func.sum(models.Transaction.amount).label('total')
-    ).group_by('month').order_by('month').all()
+    # Duplicate count
+    pending_duplicates = db.query(func.count(models.DuplicateGroup.id)).filter(
+        models.DuplicateGroup.user_id == current_user.id,
+        models.DuplicateGroup.status == models.DuplicateStatus.PENDING
+    ).scalar()
+    
+    # Recent upload sessions
+    recent_uploads = db.query(models.UploadSession).filter(
+        models.UploadSession.user_id == current_user.id
+    ).order_by(models.UploadSession.upload_date.desc()).limit(5).all()
     
     return {
-        "total_transactions": total_transactions,
-        "total_income": float(income_sum),
-        "total_expenses": float(expense_sum),
-        "net_flow": float(income_sum + expense_sum),
-        "top_categories": [
+        "totals": {
+            "transactions": total_transactions,
+            "staged": staged_count,
+            "income": float(income),
+            "expenses": float(expenses),
+            "net_flow": float(income + expenses)
+        },
+        "this_month": {
+            "transactions": month_transactions,
+            "income": float(month_income),
+            "expenses": float(month_expenses),
+            "net_flow": float(month_income + month_expenses)
+        },
+        "categories": [
             {
-                "category": stat[0],
-                "transaction_count": stat[1],
-                "total_amount": float(stat[2])
+                "name": cat.category,
+                "count": cat.count,
+                "total": float(cat.total)
             }
-            for stat in category_stats
+            for cat in category_stats
         ],
-        "monthly_trends": [
+        "pending_duplicates": pending_duplicates,
+        "recent_uploads": [
             {
-                "month": stat[0].strftime("%Y-%m") if stat[0] else None,
-                "transaction_count": stat[1],
-                "total_amount": float(stat[2])
+                "id": upload.id,
+                "filename": upload.filename,
+                "status": upload.status.value,
+                "upload_date": upload.upload_date.isoformat(),
+                "staged_count": upload.staged_count,
+                "approved_count": upload.approved_count
             }
-            for stat in monthly_stats
+            for upload in recent_uploads
         ]
     }
 
-# --- Upload Session Management ---
-
-@app.get("/upload-sessions/", response_model=List[schemas.UploadSession])
-def read_upload_sessions(
-    current_user: schemas.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+# ===== ANALYTICS ENDPOINTS =====
+@app.get("/analytics/spending-trends")
+async def get_spending_trends(
+    period: str = "6m",  # 1m, 3m, 6m, 1y
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(models.get_db)
 ):
-    """Get user's upload sessions."""
-    sessions = db.query(models.UploadSession).filter(
-        models.UploadSession.user_id == current_user.id
-    ).order_by(desc(models.UploadSession.created_at)).limit(20).all()
+    """Get spending trends over time."""
+    from sqlalchemy import func, extract
+    from datetime import date, timedelta
     
-    return sessions
+    # Calculate date range
+    end_date = date.today()
+    if period == "1m":
+        start_date = end_date - timedelta(days=30)
+        group_by = "day"
+    elif period == "3m":
+        start_date = end_date - timedelta(days=90)
+        group_by = "week"
+    elif period == "6m":
+        start_date = end_date - timedelta(days=180)
+        group_by = "week"
+    else:  # 1y
+        start_date = end_date - timedelta(days=365)
+        group_by = "month"
+    
+    # Query transactions
+    query = db.query(
+        models.Transaction.transaction_date,
+        func.sum(models.Transaction.amount).label('amount')
+    ).filter(
+        models.Transaction.owner_id == current_user.id,
+        models.Transaction.transaction_date >= start_date,
+        models.Transaction.transaction_date <= end_date
+    )
+    
+    if group_by == "month":
+        query = query.group_by(
+            extract('year', models.Transaction.transaction_date),
+            extract('month', models.Transaction.transaction_date)
+        )
+    elif group_by == "week":
+        query = query.group_by(
+            extract('year', models.Transaction.transaction_date),
+            extract('week', models.Transaction.transaction_date)
+        )
+    else:  # day
+        query = query.group_by(models.Transaction.transaction_date)
+    
+    results = query.order_by(models.Transaction.transaction_date).all()
+    
+    return {
+        "period": period,
+        "start_date": start_date.isoformat(),
+        "end_date": end_date.isoformat(),
+        "group_by": group_by,
+        "data": [
+            {
+                "date": result.transaction_date.isoformat(),
+                "amount": float(result.amount)
+            }
+            for result in results
+        ]
+    }
 
-@app.get("/upload-sessions/{session_id}", response_model=schemas.UploadSession)
-def read_upload_session(
-    session_id: int,
-    current_user: schemas.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+@app.get("/analytics/category-breakdown")
+async def get_category_breakdown(
+    period: str = "3m",
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(models.get_db)
 ):
-    """Get specific upload session details."""
-    session = db.query(models.UploadSession).filter(
-        models.UploadSession.id == session_id,
-        models.UploadSession.user_id == current_user.id
-    ).first()
+    """Get category breakdown for pie charts."""
+    from sqlalchemy import func
+    from datetime import date, timedelta
     
-    if not session:
-        raise HTTPException(status_code=404, detail="Upload session not found")
+    # Calculate date range
+    end_date = date.today()
+    if period == "1m":
+        start_date = end_date - timedelta(days=30)
+    elif period == "3m":
+        start_date = end_date - timedelta(days=90)
+    elif period == "6m":
+        start_date = end_date - timedelta(days=180)
+    else:  # 1y
+        start_date = end_date - timedelta(days=365)
     
-    return session
+    # Query category breakdown (expenses only)
+    results = db.query(
+        models.Transaction.category,
+        func.count(models.Transaction.id).label('count'),
+        func.sum(models.Transaction.amount).label('total')
+    ).filter(
+        models.Transaction.owner_id == current_user.id,
+        models.Transaction.transaction_date >= start_date,
+        models.Transaction.transaction_date <= end_date,
+        models.Transaction.amount < 0  # Expenses only
+    ).group_by(models.Transaction.category).all()
+    
+    return {
+        "period": period,
+        "start_date": start_date.isoformat(),
+        "end_date": end_date.isoformat(),
+        "categories": [
+            {
+                "name": result.category or "Uncategorized",
+                "count": result.count,
+                "total": abs(float(result.total)),
+                "percentage": 0  # Will be calculated on frontend
+            }
+            for result in results
+        ]
+    }
+
+# ===== SEARCH ENDPOINTS =====
+@app.get("/search/transactions")
+async def search_transactions(
+    q: str,
+    limit: int = 50,
+    offset: int = 0,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(models.get_db)
+):
+    """Search transactions by beneficiary, category, or amount."""
+    from sqlalchemy import or_, func
+    
+    # Build search query
+    search_terms = q.lower().split()
+    conditions = []
+    
+    for term in search_terms:
+        conditions.append(
+            or_(
+                func.lower(models.Transaction.beneficiary).contains(term),
+                func.lower(models.Transaction.category).contains(term),
+                models.Transaction.amount == float(term) if term.replace('.', '').replace('-', '').isdigit() else False
+            )
+        )
+    
+    query = db.query(models.Transaction).filter(
+        models.Transaction.owner_id == current_user.id
+    )
+    
+    for condition in conditions:
+        query = query.filter(condition)
+    
+    total = query.count()
+    results = query.order_by(models.Transaction.transaction_date.desc()).offset(offset).limit(limit).all()
+    
+    return {
+        "query": q,
+        "total": total,
+        "offset": offset,
+        "limit": limit,
+        "results": [
+            {
+                "id": txn.id,
+                "date": txn.transaction_date.isoformat(),
+                "beneficiary": txn.beneficiary,
+                "amount": float(txn.amount),
+                "category": txn.category,
+                "created_at": txn.created_at.isoformat()
+            }
+            for txn in results
+        ]
+    }
+
+# ===== HEALTH CHECK =====
+@app.get("/health")
+async def health_check():
+    """Health check endpoint."""
+    return {
+        "status": "healthy",
+        "timestamp": datetime.utcnow().isoformat(),
+        "version": "3.0.0"
+    }
+
+@app.get("/")
+async def api_root():
+    """API root endpoint."""
+    return {
+        "message": "Expense Tracker 3.0 API",
+        "version": "3.0.0",
+        "features": [
+            "ML-powered categorization",
+            "Smart duplicate detection",
+            "Real-time progress tracking",
+            "Advanced analytics",
+            "User-defined categories"
+        ],
+        "docs": "/docs"
+    }
+
+# ===== ERROR HANDLERS =====
+@app.exception_handler(404)
+async def not_found_handler(request, exc):
+    """Handle 404 errors."""
+    return {
+        "error": "Not Found",
+        "message": "The requested resource was not found",
+        "status_code": 404
+    }
+
+@app.exception_handler(500)
+async def internal_error_handler(request, exc):
+    """Handle 500 errors."""
+    return {
+        "error": "Internal Server Error",
+        "message": "An unexpected error occurred",
+        "status_code": 500
+    }
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)

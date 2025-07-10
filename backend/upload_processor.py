@@ -1,13 +1,14 @@
 # backend/upload_processor.py
-# Enhanced file processing utilities with staged data architecture
+# Enhanced file processing with ML categorization and duplicate detection
 
 import io
 import re
 import csv
 import asyncio
+import hashlib
 from datetime import datetime, date
 from decimal import Decimal, InvalidOperation
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 from sqlalchemy.orm import Session
 import json
 
@@ -25,12 +26,20 @@ try:
     EXCEL_AVAILABLE = True
 except ImportError:
     EXCEL_AVAILABLE = False
-    
-# Relative import
+
+# For fuzzy matching
+try:
+    from fuzzywuzzy import fuzz
+    FUZZY_AVAILABLE = True
+except ImportError:
+    FUZZY_AVAILABLE = False
+
 from . import models
+from .ml_categorizer import MLCategorizer
+from .duplicate_detector import DuplicateDetector
 
 class ProgressTracker:
-    """Handles real-time progress tracking via WebSocket."""
+    """Enhanced real-time progress tracking via WebSocket."""
     
     def __init__(self, session_id: str, websocket_manager=None):
         self.session_id = session_id
@@ -39,21 +48,47 @@ class ProgressTracker:
         self.progress_percentage = 0.0
         self.rows_processed = 0
         self.total_rows = 0
+        self.stage_weights = {
+            "parsing": 20,      # 20% for file parsing
+            "analyzing": 30,    # 30% for data analysis
+            "categorizing": 40, # 40% for ML categorization
+            "finalizing": 10    # 10% for finalization
+        }
         
-    async def update_progress(self, stage: str, progress: float, rows_processed: int = 0, total_rows: int = 0, message: str = ""):
-        """Send progress update via WebSocket."""
+    async def update_progress(self, stage: str, stage_progress: float, rows_processed: int = 0, total_rows: int = 0, message: str = ""):
+        """Send progress update via WebSocket with weighted stages."""
         self.current_stage = stage
-        self.progress_percentage = min(progress, 100.0)
         self.rows_processed = rows_processed
         self.total_rows = total_rows
+        
+        # Calculate overall progress based on stage weights
+        stage_order = ["parsing", "analyzing", "categorizing", "finalizing"]
+        
+        if stage in stage_order:
+            completed_stages = stage_order[:stage_order.index(stage)]
+            completed_weight = sum(self.stage_weights[s] for s in completed_stages)
+            current_stage_weight = self.stage_weights[stage] * (stage_progress / 100)
+            self.progress_percentage = completed_weight + current_stage_weight
         
         if self.websocket_manager:
             await self.websocket_manager.send_progress(self.session_id, {
                 "stage": stage,
                 "progress": self.progress_percentage,
+                "stage_progress": stage_progress,
                 "rows_processed": rows_processed,
                 "total_rows": total_rows,
                 "message": message,
+                "timestamp": datetime.utcnow().isoformat()
+            })
+    
+    async def send_error(self, error_message: str, details: dict = None):
+        """Send error update via WebSocket."""
+        if self.websocket_manager:
+            await self.websocket_manager.send_progress(self.session_id, {
+                "stage": "failed",
+                "progress": 0,
+                "error": error_message,
+                "details": details or {},
                 "timestamp": datetime.utcnow().isoformat()
             })
     
@@ -62,31 +97,58 @@ class ProgressTracker:
         if self.websocket_manager:
             await self.websocket_manager.send_progress(self.session_id, {
                 "stage": "completed" if result.get('success') else "failed",
-                "progress": 100.0,
+                "progress": 100.0 if result.get('success') else 0,
                 "final_result": result,
                 "timestamp": datetime.utcnow().isoformat()
             })
 
 class StagedTransactionProcessor:
-    """Handles processing of uploaded transaction files with staged architecture."""
+    """Enhanced file processor with ML categorization and duplicate detection."""
     
     def __init__(self, progress_tracker: Optional[ProgressTracker] = None):
         self.progress_tracker = progress_tracker
+        self.ml_categorizer = None
+        self.duplicate_detector = None
         
-        # Known column patterns for auto-detection
+        # Enhanced column patterns for auto-detection
         self.date_patterns = [
-            r'date', r'transaction_date', r'datum', r'fecha', r'data', r'when'
+            r'date', r'transaction_date', r'datum', r'fecha', r'data', r'when',
+            r'booking_date', r'value_date', r'posting_date', r'execution_date'
         ]
         self.description_patterns = [
             r'description', r'beneficiary', r'memo', r'payee', r'vendor', 
-            r'merchant', r'name', r'omschrijving', r'descripcion'
+            r'merchant', r'name', r'omschrijving', r'descripcion', r'details',
+            r'counterparty', r'reference', r'narrative'
         ]
         self.amount_patterns = [
-            r'amount', r'value', r'sum', r'bedrag', r'cantidad', r'monto', r'total'
+            r'amount', r'value', r'sum', r'bedrag', r'cantidad', r'monto', 
+            r'total', r'transaction_amount', r'debit', r'credit'
         ]
         self.category_patterns = [
-            r'category', r'type', r'classification', r'categorie', r'categoria'
+            r'category', r'type', r'classification', r'categorie', r'categoria',
+            r'tag', r'label', r'group'
         ]
+        
+        # File format templates
+        self.format_templates = {
+            "bank_standard": {
+                "date_cols": ["date", "transaction_date", "booking_date"],
+                "description_cols": ["description", "beneficiary", "counterparty"],
+                "amount_cols": ["amount", "transaction_amount"],
+                "debit_credit_cols": ["debit", "credit"]
+            },
+            "csv_export": {
+                "date_cols": ["date"],
+                "description_cols": ["description", "memo"],
+                "amount_cols": ["amount"]
+            },
+            "mint_export": {
+                "date_cols": ["date"],
+                "description_cols": ["description"],
+                "amount_cols": ["amount"],
+                "category_cols": ["category"]
+            }
+        }
         
     async def process_file_to_staged(
         self, 
@@ -97,22 +159,23 @@ class StagedTransactionProcessor:
         user: models.User,
         db: Session
     ) -> Dict[str, Any]:
-        """Process file and create staged transactions."""
-        
-        if self.progress_tracker:
-            await self.progress_tracker.update_progress(
-                "reading_file", 5.0, 0, 0, "Reading file content..."
-            )
+        """Enhanced file processing with ML categorization."""
         
         try:
-            # Read and parse file
-            if file_type == '.csv':
-                raw_data = await self._process_csv_file(content)
-            else:
-                raw_data = await self._process_excel_file(content)
+            # Initialize ML components
+            self.ml_categorizer = MLCategorizer(user.id, db)
+            self.duplicate_detector = DuplicateDetector(user.id, db)
+            
+            # Stage 1: Parse file
+            if self.progress_tracker:
+                await self.progress_tracker.update_progress(
+                    "parsing", 0, 0, 0, "Reading file content..."
+                )
+            
+            raw_data = await self._process_file_content(content, filename, file_type)
             
             if not raw_data:
-                return {
+                error_result = {
                     "success": False,
                     "error": "No data found in file",
                     "total_rows": 0,
@@ -121,243 +184,411 @@ class StagedTransactionProcessor:
                     "duplicate_count": 0,
                     "errors": ["File contains no readable data"]
                 }
+                if self.progress_tracker:
+                    await self.progress_tracker.send_final_update(error_result)
+                return error_result
             
-            # Store raw data in upload session
-            upload_session.raw_data = raw_data[:100]  # Store first 100 rows for audit
+            # Update upload session with raw data sample
+            upload_session.raw_data_sample = raw_data[:100]
             upload_session.total_rows = len(raw_data)
             db.commit()
             
             if self.progress_tracker:
                 await self.progress_tracker.update_progress(
-                    "parsing", 15.0, 0, len(raw_data), f"Parsed {len(raw_data)} rows"
+                    "parsing", 100, 0, len(raw_data), f"Parsed {len(raw_data)} rows"
                 )
             
-            # Detect format and normalize data
+            # Stage 2: Analyze and normalize data
+            if self.progress_tracker:
+                await self.progress_tracker.update_progress(
+                    "analyzing", 0, 0, len(raw_data), "Detecting file format..."
+                )
+            
             format_detected = self._detect_format(raw_data)
             upload_session.format_detected = format_detected
             
+            normalized_data = []
+            errors = []
+            processed_count = 0
+            
+            for i, row in enumerate(raw_data):
+                try:
+                    normalized_transaction = self._normalize_single_transaction(row, format_detected, i + 1)
+                    if normalized_transaction:
+                        normalized_data.append(normalized_transaction)
+                    processed_count += 1
+                    
+                    # Update progress every 100 rows
+                    if processed_count % 100 == 0 and self.progress_tracker:
+                        progress = (processed_count / len(raw_data)) * 100
+                        await self.progress_tracker.update_progress(
+                            "analyzing", progress, processed_count, len(raw_data), 
+                            f"Normalized {processed_count}/{len(raw_data)} transactions"
+                        )
+                        
+                except Exception as e:
+                    errors.append(f"Row {i + 1}: {str(e)}")
+                    continue
+            
             if self.progress_tracker:
                 await self.progress_tracker.update_progress(
-                    "normalizing", 25.0, 0, len(raw_data), f"Format detected: {format_detected}"
+                    "analyzing", 100, len(normalized_data), len(raw_data), 
+                    f"Analyzed {len(normalized_data)} valid transactions"
                 )
             
-            # Normalize transactions
-            normalized_transactions = await self._normalize_transactions(raw_data, format_detected)
-            
+            # Stage 3: ML Categorization and duplicate detection
             if self.progress_tracker:
                 await self.progress_tracker.update_progress(
-                    "staging", 35.0, 0, len(normalized_transactions), "Creating staged transactions..."
+                    "categorizing", 0, 0, len(normalized_data), "Initializing ML categorizer..."
                 )
             
-            # Stage transactions in batches
-            result = await self._stage_transactions_batch(
-                normalized_transactions, upload_session, user, db
+            # Train ML model with existing data
+            await self.ml_categorizer.train_model()
+            
+            staged_transactions = []
+            duplicate_count = 0
+            categorized_count = 0
+            
+            for i, transaction in enumerate(normalized_data):
+                try:
+                    # Generate file hash for duplicate detection
+                    transaction['file_hash'] = self._generate_transaction_hash(transaction)
+                    
+                    # Check for duplicates
+                    is_duplicate = await self.duplicate_detector.check_duplicate(transaction)
+                    if is_duplicate:
+                        duplicate_count += 1
+                        # Still process duplicates but mark them
+                        transaction['is_potential_duplicate'] = True
+                    
+                    # ML Categorization
+                    category_suggestion = await self.ml_categorizer.suggest_category(transaction)
+                    
+                    # Create staged transaction
+                    staged_txn = models.StagedTransaction(
+                        transaction_date=transaction['transaction_date'],
+                        beneficiary=transaction['beneficiary'],
+                        amount=transaction['amount'],
+                        description=transaction.get('description'),
+                        suggested_category=category_suggestion.get('category'),
+                        suggested_category_id=category_suggestion.get('category_id'),
+                        confidence=category_suggestion.get('confidence'),
+                        confidence_level=self._get_confidence_level(category_suggestion.get('confidence', 0)),
+                        alternative_suggestions=category_suggestion.get('alternatives', []),
+                        raw_data=transaction,
+                        file_hash=transaction['file_hash'],
+                        processing_notes=transaction.get('processing_notes', []),
+                        requires_review=category_suggestion.get('confidence', 0) < 0.9,
+                        auto_approve_eligible=category_suggestion.get('confidence', 0) >= 0.95,
+                        owner_id=user.id,
+                        upload_session_id=upload_session.id
+                    )
+                    
+                    db.add(staged_txn)
+                    staged_transactions.append(staged_txn)
+                    
+                    if category_suggestion.get('category'):
+                        categorized_count += 1
+                    
+                    # Update progress every 50 transactions
+                    if (i + 1) % 50 == 0 and self.progress_tracker:
+                        progress = ((i + 1) / len(normalized_data)) * 100
+                        await self.progress_tracker.update_progress(
+                            "categorizing", progress, i + 1, len(normalized_data), 
+                            f"Categorized {categorized_count}/{i + 1} transactions"
+                        )
+                        
+                except Exception as e:
+                    errors.append(f"Categorization error for row {i + 1}: {str(e)}")
+                    continue
+            
+            # Stage 4: Finalization
+            if self.progress_tracker:
+                await self.progress_tracker.update_progress(
+                    "finalizing", 0, len(staged_transactions), len(normalized_data), 
+                    "Saving to database..."
+                )
+            
+            # Commit all staged transactions
+            db.commit()
+            
+            # Update upload session metrics
+            upload_session.processed_rows = len(normalized_data)
+            upload_session.staged_count = len(staged_transactions)
+            upload_session.error_count = len(errors)
+            upload_session.duplicate_count = duplicate_count
+            upload_session.ml_suggestions_count = categorized_count
+            upload_session.high_confidence_suggestions = sum(
+                1 for txn in staged_transactions if txn.confidence and txn.confidence >= 0.9
             )
+            upload_session.status = models.UploadStatus.COMPLETED
+            upload_session.processing_end = datetime.utcnow()
+            upload_session.processing_log = {
+                "format_detected": format_detected,
+                "ml_suggestions": categorized_count,
+                "duplicates_found": duplicate_count,
+                "errors": errors[:50]  # Limit error log size
+            }
             
-            result.update({
+            db.commit()
+            
+            if self.progress_tracker:
+                await self.progress_tracker.update_progress(
+                    "finalizing", 100, len(staged_transactions), len(normalized_data), 
+                    "Processing complete!"
+                )
+            
+            # Prepare final result
+            result = {
                 "success": True,
+                "upload_session_id": upload_session.id,
                 "total_rows": len(raw_data),
-                "format_detected": format_detected
-            })
+                "processed_rows": len(normalized_data),
+                "staged_count": len(staged_transactions),
+                "error_count": len(errors),
+                "duplicate_count": duplicate_count,
+                "ml_suggestions_count": categorized_count,
+                "high_confidence_count": upload_session.high_confidence_suggestions,
+                "format_detected": format_detected,
+                "processing_time_seconds": upload_session.processing_time_seconds,
+                "errors": errors[:10] if errors else []  # Return first 10 errors
+            }
+            
+            if self.progress_tracker:
+                await self.progress_tracker.send_final_update(result)
             
             return result
             
         except Exception as e:
-            error_msg = f"Processing failed: {str(e)}"
+            # Handle processing errors
+            upload_session.status = models.UploadStatus.FAILED
+            upload_session.processing_end = datetime.utcnow()
+            upload_session.error_details = {"error": str(e)}
+            db.commit()
+            
+            error_result = {
+                "success": False,
+                "error": str(e),
+                "upload_session_id": upload_session.id
+            }
             
             if self.progress_tracker:
-                await self.progress_tracker.update_progress(
-                    "error", 0.0, 0, 0, error_msg
-                )
+                await self.progress_tracker.send_error(str(e), {"session_id": upload_session.id})
+                await self.progress_tracker.send_final_update(error_result)
             
-            return {
-                "success": False,
-                "error": error_msg,
-                "total_rows": 0,
-                "staged_count": 0,
-                "error_count": 1,
-                "duplicate_count": 0,
-                "errors": [error_msg]
-            }
+            return error_result
     
-    async def _process_csv_file(self, content: bytes) -> List[Dict[str, Any]]:
-        """Process CSV files with enhanced error handling."""
+    async def _process_file_content(self, content: bytes, filename: str, file_type: str) -> List[Dict]:
+        """Process file content based on type."""
+        if file_type == '.csv':
+            return await self._process_csv_file(content)
+        else:
+            return await self._process_excel_file(content)
+    
+    async def _process_csv_file(self, content: bytes) -> List[Dict]:
+        """Enhanced CSV processing with encoding detection."""
+        import chardet
+        
+        # Detect encoding
+        detected = chardet.detect(content)
+        encoding = detected.get('encoding', 'utf-8')
+        
         try:
-            # Try UTF-8 first, then fall back to other encodings
-            encodings = ['utf-8', 'utf-8-sig', 'latin-1', 'cp1252']
-            
-            for encoding in encodings:
+            # Try detected encoding first
+            text_content = content.decode(encoding)
+        except UnicodeDecodeError:
+            # Fallback encodings
+            for fallback_encoding in ['utf-8', 'latin1', 'cp1252']:
                 try:
-                    text_content = content.decode(encoding)
+                    text_content = content.decode(fallback_encoding)
                     break
                 except UnicodeDecodeError:
                     continue
             else:
-                raise ValueError("Could not decode file with any supported encoding")
-            
-            # Use pandas if available for better CSV handling
-            if PANDAS_AVAILABLE:
-                try:
-                    df = pd.read_csv(io.StringIO(text_content))
-                    # Convert to list of dictionaries
-                    return df.to_dict('records')
-                except Exception:
-                    # Fall back to manual processing
-                    pass
-            
-            # Manual CSV processing
-            csv_reader = csv.DictReader(io.StringIO(text_content))
-            return list(csv_reader)
-            
-        except Exception as e:
-            raise ValueError(f"Failed to parse CSV file: {str(e)}")
+                raise Exception("Could not decode file with any supported encoding")
+        
+        # Parse CSV with multiple delimiter detection
+        for delimiter in [',', ';', '\t', '|']:
+            try:
+                reader = csv.DictReader(io.StringIO(text_content), delimiter=delimiter)
+                rows = list(reader)
+                if len(rows) > 0 and len(rows[0]) > 1:  # Valid CSV should have multiple columns
+                    return rows
+            except Exception:
+                continue
+        
+        raise Exception("Could not parse CSV file with any supported delimiter")
     
-    async def _process_excel_file(self, content: bytes) -> List[Dict[str, Any]]:
-        """Process Excel files with enhanced error handling."""
-        if not EXCEL_AVAILABLE:
-            raise ValueError("Excel processing not available. Install openpyxl and xlrd packages.")
+    async def _process_excel_file(self, content: bytes) -> List[Dict]:
+        """Enhanced Excel processing with multiple sheet support."""
+        if not PANDAS_AVAILABLE:
+            raise Exception("Pandas is required for Excel file processing")
         
         try:
-            if PANDAS_AVAILABLE:
-                # Use pandas for Excel processing
-                df = pd.read_excel(io.BytesIO(content), engine='openpyxl')
-                return df.to_dict('records')
-            else:
-                # Manual Excel processing with openpyxl
-                from openpyxl import load_workbook
-                
-                workbook = load_workbook(io.BytesIO(content))
-                worksheet = workbook.active
-                
-                # Get headers from first row
-                headers = [cell.value for cell in worksheet[1]]
-                
-                # Process data rows
-                data = []
-                for row in worksheet.iter_rows(min_row=2, values_only=True):
-                    row_data = dict(zip(headers, row))
-                    # Skip empty rows
-                    if any(value is not None for value in row_data.values()):
-                        data.append(row_data)
-                
-                return data
-                
+            # Read Excel file
+            excel_data = pd.read_excel(io.BytesIO(content), sheet_name=None)  # Read all sheets
+            
+            # Find the sheet with the most data
+            best_sheet = None
+            max_rows = 0
+            
+            for sheet_name, df in excel_data.items():
+                if len(df) > max_rows:
+                    max_rows = len(df)
+                    best_sheet = df
+            
+            if best_sheet is None or len(best_sheet) == 0:
+                raise Exception("No data found in Excel file")
+            
+            # Convert to list of dictionaries
+            return best_sheet.to_dict('records')
+            
         except Exception as e:
-            raise ValueError(f"Failed to parse Excel file: {str(e)}")
+            raise Exception(f"Excel processing failed: {str(e)}")
     
-    def _detect_format(self, raw_data: List[Dict[str, Any]]) -> str:
-        """Detect the format/structure of the uploaded data."""
+    def _detect_format(self, raw_data: List[Dict]) -> str:
+        """Enhanced format detection with scoring."""
         if not raw_data:
             return "unknown"
         
         first_row = raw_data[0]
-        columns = [str(key).lower() for key in first_row.keys()]
+        columns = [col.lower().strip() for col in first_row.keys()]
         
-        # Check for common banking formats
-        has_date = any(re.search('|'.join(self.date_patterns), col, re.IGNORECASE) for col in columns)
-        has_description = any(re.search('|'.join(self.description_patterns), col, re.IGNORECASE) for col in columns)
-        has_amount = any(re.search('|'.join(self.amount_patterns), col, re.IGNORECASE) for col in columns)
+        format_scores = {}
         
-        if has_date and has_description and has_amount:
-            # Try to identify specific bank formats
-            if 'iban' in ' '.join(columns):
-                return "dutch_bank"
-            elif 'account' in ' '.join(columns):
-                return "generic_bank"
-            else:
-                return "standard_transactions"
+        for format_name, template in self.format_templates.items():
+            score = 0
+            total_possible = 0
+            
+            # Check for date columns
+            for date_col in template.get("date_cols", []):
+                total_possible += 1
+                if any(self._column_matches(col, [date_col]) for col in columns):
+                    score += 1
+            
+            # Check for description columns
+            for desc_col in template.get("description_cols", []):
+                total_possible += 1
+                if any(self._column_matches(col, [desc_col]) for col in columns):
+                    score += 1
+            
+            # Check for amount columns
+            for amount_col in template.get("amount_cols", []):
+                total_possible += 1
+                if any(self._column_matches(col, [amount_col]) for col in columns):
+                    score += 1
+            
+            format_scores[format_name] = score / total_possible if total_possible > 0 else 0
         
-        return "unknown"
+        # Return the format with the highest score
+        best_format = max(format_scores, key=format_scores.get)
+        if format_scores[best_format] > 0.5:  # At least 50% match
+            return best_format
+        
+        return "generic"
     
-    async def _normalize_transactions(self, raw_data: List[Dict[str, Any]], format_detected: str) -> List[Dict[str, Any]]:
-        """Normalize raw data into standard transaction format."""
-        normalized = []
+    def _column_matches(self, column: str, patterns: List[str]) -> bool:
+        """Check if column matches any of the patterns."""
+        column_clean = column.lower().strip()
+        for pattern in patterns:
+            if pattern.lower() in column_clean or column_clean in pattern.lower():
+                return True
+        return False
+    
+    def _normalize_single_transaction(self, row: Dict, format_detected: str, row_num: int) -> Dict:
+        """Enhanced transaction normalization with better error handling."""
+        normalized = {}
+        processing_notes = []
         
-        for i, row in enumerate(raw_data):
-            try:
-                transaction = self._normalize_single_transaction(row, format_detected, i + 1)
-                if transaction:
-                    normalized.append(transaction)
-            except Exception as e:
-                # Skip invalid rows but log the error
-                print(f"Warning: Skipping row {i + 1}: {str(e)}")
-                continue
+        # Find date column
+        date_value = None
+        for col, value in row.items():
+            if self._column_matches(col, self.date_patterns):
+                date_value = self._parse_date(value)
+                if date_value:
+                    break
+        
+        if not date_value:
+            raise Exception(f"Could not parse date from row {row_num}")
+        
+        normalized['transaction_date'] = date_value
+        
+        # Find description/beneficiary
+        beneficiary = None
+        for col, value in row.items():
+            if self._column_matches(col, self.description_patterns):
+                beneficiary = str(value).strip() if value else None
+                if beneficiary:
+                    break
+        
+        if not beneficiary:
+            raise Exception(f"Could not find beneficiary/description in row {row_num}")
+        
+        normalized['beneficiary'] = beneficiary
+        
+        # Find amount (handle debit/credit columns)
+        amount = None
+        
+        # First, try to find a single amount column
+        for col, value in row.items():
+            if self._column_matches(col, self.amount_patterns):
+                amount = self._parse_amount(value)
+                if amount is not None:
+                    break
+        
+        # If no single amount found, try debit/credit columns
+        if amount is None:
+            debit = credit = None
+            for col, value in row.items():
+                col_lower = col.lower()
+                if 'debit' in col_lower or 'withdrawal' in col_lower:
+                    debit = self._parse_amount(value)
+                elif 'credit' in col_lower or 'deposit' in col_lower:
+                    credit = self._parse_amount(value)
+            
+            if debit is not None and credit is not None:
+                amount = credit - debit  # Credit positive, debit negative
+            elif debit is not None:
+                amount = -abs(debit)  # Debit is negative
+            elif credit is not None:
+                amount = abs(credit)  # Credit is positive
+        
+        if amount is None:
+            raise Exception(f"Could not parse amount from row {row_num}")
+        
+        normalized['amount'] = amount
+        
+        # Optional: find category if present
+        category = None
+        for col, value in row.items():
+            if self._column_matches(col, self.category_patterns):
+                category = str(value).strip() if value else None
+                if category:
+                    break
+        
+        if category:
+            normalized['existing_category'] = category
+            processing_notes.append(f"Original category: {category}")
+        
+        # Add additional fields
+        normalized['description'] = beneficiary  # Use beneficiary as description
+        normalized['processing_notes'] = processing_notes
         
         return normalized
     
-    def _normalize_single_transaction(self, row: Dict[str, Any], format_detected: str, row_num: int) -> Optional[Dict[str, Any]]:
-        """Normalize a single transaction row."""
-        transaction = {}
-        
-        # Find and parse date
-        date_value = self._find_column_value(row, self.date_patterns)
-        transaction['transaction_date'] = self._parse_date(date_value)
-        
-        # Find and parse description/beneficiary
-        description_value = self._find_column_value(row, self.description_patterns)
-        transaction['beneficiary'] = str(description_value) if description_value else ""
-        
-        # Find and parse amount
-        amount_value = self._find_column_value(row, self.amount_patterns)
-        transaction['amount'] = self._parse_amount(amount_value)
-        
-        # Find optional category
-        category_value = self._find_column_value(row, self.category_patterns)
-        transaction['category'] = str(category_value) if category_value else None
-        
-        # Set defaults
-        transaction['labels'] = []
-        transaction['is_private'] = False
-        transaction['notes'] = None
-        
-        # Store original row data for audit
-        transaction['raw_data'] = row
-        
-        # Validate required fields
-        if not transaction['transaction_date']:
-            raise ValueError(f"Missing or invalid date")
-        if not transaction['beneficiary']:
-            raise ValueError(f"Missing beneficiary/description")
-        if transaction['amount'] is None:
-            raise ValueError(f"Missing or invalid amount")
-        
-        return transaction
-    
-    def _find_column_value(self, row: Dict[str, Any], patterns: List[str]) -> Any:
-        """Find value from row using column patterns."""
-        for key, value in row.items():
-            key_lower = str(key).lower()
-            for pattern in patterns:
-                if re.search(pattern, key_lower, re.IGNORECASE):
-                    return value
-        return None
-    
-    def _parse_date(self, date_value: Any) -> Optional[date]:
-        """Parse date from various formats."""
+    def _parse_date(self, date_value) -> Optional[date]:
+        """Enhanced date parsing with multiple formats."""
         if not date_value:
             return None
         
-        # If it's already a date object
-        if isinstance(date_value, date):
-            return date_value
-        
-        # If it's a datetime object
-        if isinstance(date_value, datetime):
-            return date_value.date()
-        
-        # Try to parse string dates
+        # Convert to string if needed
         date_str = str(date_value).strip()
         
         # Common date formats
         date_formats = [
-            '%Y-%m-%d',
-            '%d-%m-%Y',
-            '%m/%d/%Y',
-            '%d/%m/%Y',
-            '%Y/%m/%d',
-            '%Y-%m-%d %H:%M:%S',
-            '%d-%m-%Y %H:%M:%S',
-            '%Y%m%d'
+            "%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y", "%d.%m.%Y", 
+            "%Y/%m/%d", "%d-%m-%Y", "%m-%d-%Y", "%d %m %Y",
+            "%Y-%m-%d %H:%M:%S", "%d/%m/%Y %H:%M:%S"
         ]
         
         for fmt in date_formats:
@@ -366,202 +597,59 @@ class StagedTransactionProcessor:
             except ValueError:
                 continue
         
+        # Try pandas date parsing as fallback
+        if PANDAS_AVAILABLE:
+            try:
+                return pd.to_datetime(date_str).date()
+            except Exception:
+                pass
+        
         return None
     
-    def _parse_amount(self, amount_value: Any) -> Optional[Decimal]:
-        """Parse amount from various formats."""
-        if amount_value is None:
+    def _parse_amount(self, amount_value) -> Optional[Decimal]:
+        """Enhanced amount parsing with currency symbol handling."""
+        if amount_value is None or amount_value == '':
             return None
         
-        # If it's already a number
-        if isinstance(amount_value, (int, float, Decimal)):
-            return Decimal(str(amount_value))
-        
-        # Clean string amount
+        # Convert to string
         amount_str = str(amount_value).strip()
         
-        # Remove common currency symbols and spaces
-        amount_str = re.sub(r'[€$£¥₹\s]', '', amount_str)
+        # Remove currency symbols and formatting
+        amount_clean = re.sub(r'[€$£¥₹,\s]', '', amount_str)
         
-        # Handle European decimal notation (comma as decimal separator)
-        if ',' in amount_str and '.' in amount_str:
-            # Both comma and dot - assume dot is thousands separator if it comes before comma
-            if amount_str.rindex('.') < amount_str.rindex(','):
-                amount_str = amount_str.replace('.', '').replace(',', '.')
-        elif ',' in amount_str and amount_str.count(',') == 1:
-            # Single comma - could be decimal separator
-            if len(amount_str.split(',')[1]) <= 2:  # 2 digits after comma suggests decimal
-                amount_str = amount_str.replace(',', '.')
-        
-        # Remove any remaining non-numeric characters except minus and dot
-        amount_str = re.sub(r'[^-\d.]', '', amount_str)
+        # Handle negative amounts in parentheses
+        if amount_clean.startswith('(') and amount_clean.endswith(')'):
+            amount_clean = '-' + amount_clean[1:-1]
         
         try:
-            return Decimal(amount_str)
+            return Decimal(amount_clean)
         except (InvalidOperation, ValueError):
             return None
     
-    async def _stage_transactions_batch(
-        self, 
-        transactions: List[Dict[str, Any]], 
-        upload_session: models.UploadSession,
-        user: models.User,
-        db: Session
-    ) -> Dict[str, Any]:
-        """Stage transactions in batches for better performance."""
-        
-        total_rows = len(transactions)
-        batch_size = 50
-        staged_count = 0
-        error_count = 0
-        duplicate_count = 0
-        errors = []
-        
-        # Get existing transactions for duplicate detection
-        existing_transactions = db.query(models.Transaction).filter(
-            models.Transaction.owner_id == user.id
-        ).all()
-        
-        existing_hashes = set()
-        for tx in existing_transactions:
-            hash_key = f"{tx.transaction_date}_{tx.beneficiary}_{tx.amount}"
-            existing_hashes.add(hash_key)
-        
-        # Process in batches
-        for batch_start in range(0, total_rows, batch_size):
-            batch_end = min(batch_start + batch_size, total_rows)
-            batch = transactions[batch_start:batch_end]
-            
-            if self.progress_tracker:
-                progress = 35 + (batch_start / total_rows) * 55  # 35% to 90%
-                await self.progress_tracker.update_progress(
-                    "staging", 
-                    progress, 
-                    batch_start, 
-                    total_rows,
-                    f"Processing batch {batch_start // batch_size + 1}..."
-                )
-            
-            # Process batch
-            for idx, transaction in enumerate(batch):
-                try:
-                    # Check for duplicates
-                    hash_key = f"{transaction['transaction_date']}_{transaction['beneficiary']}_{transaction['amount']}"
-                    if hash_key in existing_hashes:
-                        duplicate_count += 1
-                        continue
-                    
-                    # Create staged transaction
-                    staged_transaction = models.StagedTransaction(
-                        transaction_date=transaction['transaction_date'],
-                        beneficiary=transaction['beneficiary'],
-                        amount=transaction['amount'],
-                        category=transaction.get('category'),
-                        labels=transaction.get('labels', []),
-                        is_private=transaction.get('is_private', False),
-                        notes=transaction.get('notes'),
-                        user_id=user.id,
-                        upload_session_id=upload_session.id,
-                        status=models.TransactionStatus.STAGED,
-                        confidence_score=Decimal('0.9'),  # High confidence for parsed data
-                        raw_transaction_data=transaction.get('raw_data', {}),
-                        created_at=datetime.utcnow()
-                    )
-                    
-                    # Simple categorization suggestion
-                    suggested_category = self._suggest_category(transaction['beneficiary'])
-                    if suggested_category:
-                        staged_transaction.suggested_category = suggested_category
-                    
-                    db.add(staged_transaction)
-                    staged_count += 1
-                    existing_hashes.add(hash_key)  # Prevent duplicates within same file
-                    
-                    # Commit in batches
-                    if staged_count % 50 == 0:
-                        db.commit()
-                
-                except Exception as e:
-                    error_count += 1
-                    errors.append(f"Row {batch_start + idx + 2}: {str(e)}")
-            
-            # Commit batch
-            db.commit()
-            
-            # Add small delay to prevent overwhelming the system
-            if batch_end < total_rows:
-                await asyncio.sleep(0.1)
-        
-        # Final progress update
-        if self.progress_tracker:
-            await self.progress_tracker.update_progress(
-                "finalizing", 
-                95.0, 
-                total_rows, 
-                total_rows,
-                "Finalizing staged transactions..."
-            )
-        
-        # Update upload session
-        upload_session.staged_count = staged_count
-        upload_session.error_count = error_count
-        upload_session.duplicate_count = duplicate_count
-        upload_session.processed_rows = total_rows
-        db.commit()
-        
-        return {
-            "staged_count": staged_count,
-            "error_count": error_count,
-            "duplicate_count": duplicate_count,
-            "errors": errors[:10]  # Limit errors in response
-        }
+    def _generate_transaction_hash(self, transaction: Dict) -> str:
+        """Generate hash for duplicate detection."""
+        # Create a consistent string for hashing
+        hash_string = f"{transaction['transaction_date']}|{transaction['beneficiary']}|{transaction['amount']}"
+        return hashlib.md5(hash_string.encode()).hexdigest()
     
-    def _suggest_category(self, beneficiary: str) -> Optional[str]:
-        """Simple category suggestion based on beneficiary name."""
-        if not beneficiary:
-            return None
-        
-        beneficiary_lower = beneficiary.lower()
-        
-        # Simple keyword-based categorization
-        category_keywords = {
-            "Groceries": ["supermarket", "grocery", "food", "albert heijn", "jumbo", "lidl", "aldi"],
-            "Transport": ["uber", "taxi", "train", "bus", "fuel", "gas", "petrol", "parking"],
-            "Utilities": ["electricity", "gas", "water", "internet", "phone", "mobile"],
-            "Entertainment": ["cinema", "netflix", "spotify", "restaurant", "bar", "pub"],
-            "Shopping": ["amazon", "shop", "store", "mall", "clothing", "fashion"],
-            "Healthcare": ["doctor", "pharmacy", "hospital", "medical", "dentist"],
-            "Banking": ["bank", "atm", "fee", "charge", "interest"]
-        }
-        
-        for category, keywords in category_keywords.items():
-            if any(keyword in beneficiary_lower for keyword in keywords):
-                return category
-        
-        return None
-    
-    def _validate_transaction_data(self, transaction: Dict[str, Any], row_num: int) -> Optional[str]:
-        """Validate transaction data and return error message if invalid."""
-        if not transaction.get('transaction_date'):
-            return f"Row {row_num}: Missing or invalid date"
-        
-        if not transaction.get('beneficiary'):
-            return f"Row {row_num}: Missing beneficiary/description"
-        
-        if transaction.get('amount') is None:
-            return f"Row {row_num}: Missing or invalid amount"
-        
-        return None
+    def _get_confidence_level(self, confidence: float) -> models.CategorizationConfidence:
+        """Convert confidence score to enum."""
+        if confidence >= 0.91:
+            return models.CategorizationConfidence.VERY_HIGH
+        elif confidence >= 0.71:
+            return models.CategorizationConfidence.HIGH
+        elif confidence >= 0.41:
+            return models.CategorizationConfidence.MEDIUM
+        else:
+            return models.CategorizationConfidence.LOW
     
     async def validate_file_structure(self, content: bytes, filename: str) -> Dict[str, Any]:
-        """Validate file structure without full processing."""
+        """Enhanced file validation with detailed feedback."""
         try:
             file_type = '.' + filename.split('.')[-1].lower()
             
-            if file_type == '.csv':
-                raw_data = await self._process_csv_file(content)
-            else:
-                raw_data = await self._process_excel_file(content)
+            # Process file
+            raw_data = await self._process_file_content(content, filename, file_type)
             
             if not raw_data:
                 return {"valid": False, "error": "No data found in file"}
@@ -570,15 +658,29 @@ class StagedTransactionProcessor:
             issues = []
             suggestions = []
             
-            # Check for required columns based on detected format
+            # Check for required columns
             first_row = raw_data[0]
             columns = list(first_row.keys())
             
-            if format_detected == "unknown":
-                issues.append("Could not detect a known format")
-                suggestions.append("Ensure file has date, description, and amount columns")
+            # Validate date column
+            has_date = any(self._column_matches(col, self.date_patterns) for col in columns)
+            if not has_date:
+                issues.append("No date column detected")
+                suggestions.append("Ensure file has a column with dates (e.g., 'Date', 'Transaction Date')")
             
-            # Check first few rows for data quality
+            # Validate description column
+            has_description = any(self._column_matches(col, self.description_patterns) for col in columns)
+            if not has_description:
+                issues.append("No description/beneficiary column detected")
+                suggestions.append("Ensure file has a column with transaction descriptions")
+            
+            # Validate amount column
+            has_amount = any(self._column_matches(col, self.amount_patterns) for col in columns)
+            if not has_amount:
+                issues.append("No amount column detected")
+                suggestions.append("Ensure file has a column with transaction amounts")
+            
+            # Test data quality on sample rows
             sample_size = min(5, len(raw_data))
             for i in range(sample_size):
                 try:
@@ -591,9 +693,29 @@ class StagedTransactionProcessor:
                 "format_detected": format_detected,
                 "estimated_rows": len(raw_data),
                 "columns_found": columns,
+                "column_mapping": self._suggest_column_mapping(columns),
                 "issues": issues,
-                "suggestions": suggestions
+                "suggestions": suggestions,
+                "sample_data": raw_data[:3]  # First 3 rows for preview
             }
             
         except Exception as e:
             return {"valid": False, "error": str(e)}
+    
+    def _suggest_column_mapping(self, columns: List[str]) -> Dict[str, str]:
+        """Suggest column mapping for manual override."""
+        mapping = {}
+        
+        for col in columns:
+            col_lower = col.lower().strip()
+            
+            if any(pattern in col_lower for pattern in ['date', 'datum', 'fecha']):
+                mapping[col] = "date"
+            elif any(pattern in col_lower for pattern in ['description', 'beneficiary', 'payee', 'merchant']):
+                mapping[col] = "description"
+            elif any(pattern in col_lower for pattern in ['amount', 'value', 'sum', 'total']):
+                mapping[col] = "amount"
+            elif any(pattern in col_lower for pattern in ['category', 'type', 'classification']):
+                mapping[col] = "category"
+        
+        return mapping

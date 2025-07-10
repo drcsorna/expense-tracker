@@ -1,52 +1,74 @@
-#!/usr/bin/env python3
-"""
-Simple startup script for the Expense Tracker 2.0
-Handles database initialization and server startup
-"""
+# start_server.py
+# Serve both frontend HTML and backend API together
 
 import uvicorn
+from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 import os
-import sys
 from pathlib import Path
 
-# Add the project root to Python path
-project_root = Path(__file__).parent
-sys.path.insert(0, str(project_root))
+# Import your backend app
+from backend.main import app as backend_app
 
-# Import after path setup
-from backend.models import engine, Base
+# Create the main app that will serve everything
+app = FastAPI(title="Expense Tracker 3.0 - Full Stack")
 
-def create_tables():
-    """Create database tables if they don't exist."""
-    print("🔧 Creating database tables...")
-    Base.metadata.create_all(bind=engine)
-    print("✅ Database tables created successfully!")
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-def main():
-    """Main startup function."""
-    print("🚀 Starting Expense Tracker 2.0...")
-    
-    # Create database tables
-    create_tables()
-    
-    # Get configuration from environment
-    host = os.getenv("HOST", "127.0.0.1")
-    port = int(os.getenv("PORT", "8000"))
-    reload = os.getenv("DEBUG", "true").lower() == "true"
-    
-    print(f"🌐 Server will start at http://{host}:{port}")
-    print(f"📊 Admin interface: http://{host}:{port}/docs")
-    print(f"🎯 Application: http://{host}:{port}/app")
-    
-    # Start the server
-    uvicorn.run(
-        "backend.main:app",
-        host=host,
-        port=port,
-        reload=reload,
-        reload_dirs=["backend"] if reload else None,
-        log_level="info"
-    )
+# Mount the backend API under /api prefix
+app.mount("/api", backend_app)
+
+# Serve static files (CSS, JS, images) if you have them
+frontend_dir = Path("frontend")
+if frontend_dir.exists():
+    app.mount("/static", StaticFiles(directory="frontend"), name="static")
+
+# Serve the main HTML file at the root
+@app.get("/")
+async def serve_frontend():
+    """Serve the main frontend HTML file."""
+    html_file = Path("frontend/index.html")
+    if html_file.exists():
+        return FileResponse(html_file)
+    else:
+        # Fallback if no frontend file exists yet
+        return {
+            "message": "Expense Tracker 3.0 - Frontend file not found",
+            "instructions": "Create frontend/index.html with the new UI",
+            "backend_api": "/api/docs",
+            "features": [
+                "ML-powered categorization",
+                "Smart duplicate detection", 
+                "Real-time progress tracking",
+                "Advanced analytics",
+                "User-defined categories"
+            ]
+        }
+
+# Health check endpoint
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy", "version": "3.0.0"}
 
 if __name__ == "__main__":
-    main()
+    print("🚀 Starting Expense Tracker 3.0...")
+    print("📱 Frontend: http://localhost:8000/")
+    print("🔧 Backend API: http://localhost:8000/api/")
+    print("📚 API Docs: http://localhost:8000/api/docs")
+    
+    uvicorn.run(
+        "start_server:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True,
+        log_level="info"
+    )
