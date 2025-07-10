@@ -1,0 +1,23 @@
+<div id="staged-tab" class="tab-content">
+    <div class="flex justify-between align-items-center mb-lg">
+        <h3>📋 Review & Categorize</h3>
+        <div>
+            <button class="btn btn-success btn-sm" onclick="window.stagedTransactions.approveAll()">✅ Approve All</button>
+            <button class="btn btn-danger btn-sm" onclick="window.stagedTransactions.deleteAll()">🗑️ Delete All</button>
+        </div>
+    </div>
+    
+    <div id="staged-pagination-info" class="pagination-info"></div>
+    
+    <div id="staged-list">
+        <div class="text-center p-md">
+            <span style="color: var(--color-text-secondary);">Loading staged transactions...</span>
+        </div>
+    </div>
+    
+    <div id="staged-load-more" class="load-more-container hidden">
+        <button class="btn-load-more" onclick="window.stagedTransactions.loadMore()">
+            <span class="load-more-text">Load More Transactions</span>
+        </button>
+    </div>
+</div>

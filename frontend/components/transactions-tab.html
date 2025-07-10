@@ -1,0 +1,24 @@
+<div id="transactions-tab" class="tab-content">
+    <div class="flex justify-between align-items-center mb-lg">
+        <h3>💰 Transaction History</h3>
+        <div style="display: flex; gap: var(--space-md); align-items: center;">
+            <input type="text" id="search-transactions" placeholder="🔍 Search transactions..." 
+                   style="padding: var(--space-sm) var(--space-md); border-radius: var(--radius-md); border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text);">
+            <button class="btn btn-sm" onclick="window.transactionManager.export()">📥 Export</button>
+        </div>
+    </div>
+    
+    <div id="transactions-pagination-info" class="pagination-info"></div>
+    
+    <div id="transactions-list">
+        <div class="text-center p-md">
+            <span style="color: var(--color-text-secondary);">Loading transactions...</span>
+        </div>
+    </div>
+    
+    <div id="transactions-load-more" class="load-more-container hidden">
+        <button class="btn-load-more" onclick="window.transactionManager.loadMore()">
+            <span class="load-more-text">Load More Transactions</span>
+        </button>
+    </div>
+</div>
