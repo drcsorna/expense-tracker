@@ -1,8 +1,8 @@
 # backend/main.py
-# Main FastAPI app instance with enhanced staged data architecture
+# Enhanced FastAPI app with ML categorization and duplicate management
 
 from datetime import datetime, timedelta, date
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 import os
 from decimal import Decimal
 
@@ -21,15 +21,15 @@ from .models import engine, get_db, create_default_categories
 from .auth import get_current_user, verify_password, get_password_hash, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
 
 # Import routers
-from .routers import upload
+from .routers import upload, categorization, duplicates
 
 # --- Application Setup ---
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
-    title="Expense Tracker API",
-    description="A comprehensive expense tracking application with staged data processing",
-    version="2.0.0"
+    title="Expense Tracker API 3.0",
+    description="Intelligent expense tracking with ML-powered categorization and duplicate management",
+    version="3.0.0"
 )
 
 # --- CORS Middleware ---
@@ -48,6 +48,8 @@ if os.path.exists(frontend_path):
 
 # --- Include Routers ---
 app.include_router(upload.router)
+app.include_router(categorization.router)
+app.include_router(duplicates.router)
 
 # --- Core API Endpoints ---
 
@@ -59,15 +61,16 @@ def read_root():
         return FileResponse(frontend_index)
     
     return {
-        "message": "Welcome to the Expense Tracker API v2.0",
-        "version": "2.0.0",
+        "message": "Welcome to the Expense Tracker API v3.0",
+        "version": "3.0.0",
         "status": "running",
         "features": [
-            "Staged data processing",
-            "Smart categorization", 
-            "Bulk operations",
+            "ML-powered categorization",
+            "Smart duplicate detection", 
+            "Category bootstrap learning",
             "Real-time progress tracking",
-            "Advanced filtering"
+            "Advanced filtering",
+            "Dark/Light theme support"
         ]
     }
 
@@ -82,12 +85,18 @@ def serve_frontend():
 
 @app.get("/health")
 def health_check():
-    """Health check endpoint."""
+    """Enhanced health check endpoint."""
     return {
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
         "service": "expense-tracker-api",
-        "version": "2.0.0"
+        "version": "3.0.0",
+        "features": {
+            "ml_categorization": True,
+            "duplicate_detection": True,
+            "real_time_progress": True,
+            "category_bootstrap": True
+        }
     }
 
 # --- Authentication Endpoints ---
@@ -142,19 +151,14 @@ def read_transactions(
     current_user: schemas.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get paginated transactions with filtering."""
-    query = db.query(models.Transaction).filter(
-        models.Transaction.owner_id == current_user.id
-    )
+    """Get paginated transactions with advanced filtering."""
+    
+    # Build query
+    query = db.query(models.Transaction).filter(models.Transaction.owner_id == current_user.id)
     
     # Apply filters
     if search:
-        query = query.filter(
-            or_(
-                models.Transaction.beneficiary.ilike(f"%{search}%"),
-                models.Transaction.notes.ilike(f"%{search}%")
-            )
-        )
+        query = query.filter(models.Transaction.beneficiary.ilike(f"%{search}%"))
     
     if category:
         query = query.filter(models.Transaction.category == category)
@@ -164,14 +168,14 @@ def read_transactions(
             date_from_obj = datetime.strptime(date_from, "%Y-%m-%d").date()
             query = query.filter(models.Transaction.transaction_date >= date_from_obj)
         except ValueError:
-            pass
+            raise HTTPException(status_code=400, detail="Invalid date_from format. Use YYYY-MM-DD")
     
     if date_to:
         try:
             date_to_obj = datetime.strptime(date_to, "%Y-%m-%d").date()
             query = query.filter(models.Transaction.transaction_date <= date_to_obj)
         except ValueError:
-            pass
+            raise HTTPException(status_code=400, detail="Invalid date_to format. Use YYYY-MM-DD")
     
     if is_private is not None:
         query = query.filter(models.Transaction.is_private == is_private)
@@ -187,73 +191,16 @@ def read_transactions(
     total = query.count()
     
     # Apply pagination
-    items = query.offset(skip).limit(limit).all()
+    transactions = query.offset(skip).limit(limit).all()
     
-    return {
-        "items": items,
-        "total": total,
-        "skip": skip,
-        "limit": limit,
-        "has_next": skip + limit < total,
-        "has_previous": skip > 0
-    }
-
-@app.get("/transactions/stats")
-def get_transaction_stats(
-    current_user: schemas.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Get transaction statistics."""
-    transactions = db.query(models.Transaction).filter(
-        models.Transaction.owner_id == current_user.id
-    ).all()
-    
-    if not transactions:
-        return {
-            "total_transactions": 0,
-            "total_income": "0.00",
-            "total_expenses": "0.00",
-            "net_balance": "0.00",
-            "categories": {}
-        }
-    
-    total_income = sum(t.amount for t in transactions if t.amount > 0)
-    total_expenses = sum(abs(t.amount) for t in transactions if t.amount < 0)
-    
-    # Category breakdown
-    category_stats = {}
-    for transaction in transactions:
-        cat = transaction.category or "Uncategorized"
-        if cat not in category_stats:
-            category_stats[cat] = {"count": 0, "amount": 0}
-        category_stats[cat]["count"] += 1
-        category_stats[cat]["amount"] += float(transaction.amount)
-    
-    return {
-        "total_transactions": len(transactions),
-        "total_income": f"{total_income:.2f}",
-        "total_expenses": f"{total_expenses:.2f}",
-        "net_balance": f"{total_income - total_expenses:.2f}",
-        "categories": category_stats
-    }
-
-@app.post("/transactions/", response_model=schemas.Transaction)
-def create_transaction(
-    transaction: schemas.TransactionCreate,
-    current_user: schemas.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Create a new transaction manually."""
-    db_transaction = models.Transaction(
-        **transaction.dict(),
-        owner_id=current_user.id,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
+    return schemas.PaginatedResponse(
+        items=transactions,
+        total=total,
+        skip=skip,
+        limit=limit,
+        page=skip // limit + 1,
+        pages=(total + limit - 1) // limit
     )
-    db.add(db_transaction)
-    db.commit()
-    db.refresh(db_transaction)
-    return db_transaction
 
 @app.get("/transactions/{transaction_id}", response_model=schemas.Transaction)
 def read_transaction(
@@ -266,8 +213,10 @@ def read_transaction(
         models.Transaction.id == transaction_id,
         models.Transaction.owner_id == current_user.id
     ).first()
-    if transaction is None:
+    
+    if not transaction:
         raise HTTPException(status_code=404, detail="Transaction not found")
+    
     return transaction
 
 @app.put("/transactions/{transaction_id}", response_model=schemas.Transaction)
@@ -282,88 +231,19 @@ def update_transaction(
         models.Transaction.id == transaction_id,
         models.Transaction.owner_id == current_user.id
     ).first()
-    if transaction is None:
+    
+    if not transaction:
         raise HTTPException(status_code=404, detail="Transaction not found")
     
-    update_dict = transaction_update.dict(exclude_unset=True)
-    for field, value in update_dict.items():
+    # Update fields
+    for field, value in transaction_update.dict(exclude_unset=True).items():
         setattr(transaction, field, value)
     
     transaction.updated_at = datetime.utcnow()
     db.commit()
     db.refresh(transaction)
+    
     return transaction
-
-@app.post("/transactions/{transaction_id}/split", response_model=schemas.SplitResult)
-def split_transaction(
-    transaction_id: int,
-    split_data: schemas.TransactionSplit,
-    current_user: schemas.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Split a transaction into multiple transactions."""
-    original_transaction = db.query(models.Transaction).filter(
-        models.Transaction.id == transaction_id,
-        models.Transaction.owner_id == current_user.id
-    ).first()
-    
-    if not original_transaction:
-        raise HTTPException(status_code=404, detail="Transaction not found")
-    
-    if original_transaction.is_split:
-        raise HTTPException(status_code=400, detail="Transaction is already split")
-    
-    # Validate split amounts
-    split_total = sum(Decimal(str(split['amount'])) for split in split_data.splits)
-    if abs(split_total - original_transaction.amount) > Decimal('0.01'):
-        raise HTTPException(
-            status_code=400, 
-            detail="Split amounts must sum to original transaction amount"
-        )
-    
-    try:
-        new_transaction_ids = []
-        
-        # Mark original as split
-        original_transaction.is_split = True
-        original_transaction.split_reason = split_data.reason
-        original_transaction.updated_at = datetime.utcnow()
-        
-        # Create split transactions
-        for i, split in enumerate(split_data.splits):
-            split_transaction = models.Transaction(
-                transaction_date=original_transaction.transaction_date,
-                beneficiary=original_transaction.beneficiary,
-                amount=Decimal(str(split['amount'])),
-                category=split.get('category', original_transaction.category),
-                labels=split.get('labels', original_transaction.labels),
-                is_private=original_transaction.is_private,
-                notes=f"Split {i+1}: {split.get('notes', '')}",
-                owner_id=current_user.id,
-                is_split=True,
-                parent_transaction_id=original_transaction.id,
-                split_reason=split_data.reason,
-                source_upload_session_id=original_transaction.source_upload_session_id,
-                raw_data=original_transaction.raw_data,
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow()
-            )
-            db.add(split_transaction)
-            db.flush()
-            new_transaction_ids.append(split_transaction.id)
-        
-        db.commit()
-        
-        return {
-            "success": True,
-            "original_transaction_id": transaction_id,
-            "new_transaction_ids": new_transaction_ids,
-            "message": f"Transaction split into {len(split_data.splits)} parts"
-        }
-        
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error splitting transaction: {str(e)}")
 
 @app.delete("/transactions/{transaction_id}")
 def delete_transaction(
@@ -376,53 +256,51 @@ def delete_transaction(
         models.Transaction.id == transaction_id,
         models.Transaction.owner_id == current_user.id
     ).first()
-    if transaction is None:
+    
+    if not transaction:
         raise HTTPException(status_code=404, detail="Transaction not found")
     
     db.delete(transaction)
     db.commit()
+    
     return {"message": "Transaction deleted successfully"}
-
-@app.delete("/transactions/")
-def delete_all_transactions(
-    current_user: schemas.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Delete all transactions for the current user."""
-    deleted_count = db.query(models.Transaction).filter(
-        models.Transaction.owner_id == current_user.id
-    ).delete()
-    db.commit()
-    return {
-        "message": f"Successfully deleted {deleted_count} transactions",
-        "deleted_count": deleted_count
-    }
 
 # --- Staged Transaction Endpoints ---
 
 @app.get("/staged-transactions/", response_model=List[schemas.StagedTransaction])
 def read_staged_transactions(
-    skip: int = 0,
-    limit: int = 100,
-    status: Optional[schemas.TransactionStatusEnum] = None,
     current_user: schemas.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get staged transactions."""
-    query = db.query(models.StagedTransaction).filter(
+    """Get all staged transactions for review."""
+    staged_transactions = db.query(models.StagedTransaction).filter(
+        models.StagedTransaction.user_id == current_user.id,
+        models.StagedTransaction.status == models.TransactionStatus.STAGED
+    ).order_by(desc(models.StagedTransaction.created_at)).all()
+    
+    return staged_transactions
+
+@app.get("/staged-transactions/{staged_id}", response_model=schemas.StagedTransaction)
+def read_staged_transaction(
+    staged_id: int,
+    current_user: schemas.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get a specific staged transaction."""
+    staged_transaction = db.query(models.StagedTransaction).filter(
+        models.StagedTransaction.id == staged_id,
         models.StagedTransaction.user_id == current_user.id
-    )
+    ).first()
     
-    if status:
-        query = query.filter(models.StagedTransaction.status == status)
+    if not staged_transaction:
+        raise HTTPException(status_code=404, detail="Staged transaction not found")
     
-    query = query.order_by(desc(models.StagedTransaction.created_at))
-    return query.offset(skip).limit(limit).all()
+    return staged_transaction
 
 @app.put("/staged-transactions/{staged_id}", response_model=schemas.StagedTransaction)
 def update_staged_transaction(
     staged_id: int,
-    update_data: schemas.StagedTransactionUpdate,
+    transaction_update: schemas.StagedTransactionUpdate,
     current_user: schemas.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -435,73 +313,35 @@ def update_staged_transaction(
     if not staged_transaction:
         raise HTTPException(status_code=404, detail="Staged transaction not found")
     
-    update_dict = update_data.dict(exclude_unset=True)
-    for field, value in update_dict.items():
+    # Update fields
+    for field, value in transaction_update.dict(exclude_unset=True).items():
         setattr(staged_transaction, field, value)
     
     db.commit()
     db.refresh(staged_transaction)
+    
     return staged_transaction
 
-@app.post("/staged-transactions/{staged_id}/confirm", response_model=schemas.Transaction)
-def confirm_staged_transaction(
-    staged_id: int,
-    current_user: schemas.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Confirm a staged transaction, moving it to confirmed transactions."""
-    staged_transaction = db.query(models.StagedTransaction).filter(
-        models.StagedTransaction.id == staged_id,
-        models.StagedTransaction.user_id == current_user.id,
-        models.StagedTransaction.status == schemas.TransactionStatusEnum.STAGED
-    ).first()
-    
-    if not staged_transaction:
-        raise HTTPException(status_code=404, detail="Staged transaction not found")
-    
-    # Create confirmed transaction
-    confirmed_transaction = models.Transaction(
-        transaction_date=staged_transaction.transaction_date,
-        beneficiary=staged_transaction.beneficiary,
-        amount=staged_transaction.amount,
-        category=staged_transaction.category,
-        labels=staged_transaction.labels,
-        is_private=staged_transaction.is_private,
-        notes=staged_transaction.notes,
-        owner_id=current_user.id,
-        source_upload_session_id=staged_transaction.upload_session_id,
-        confirmed_at=datetime.utcnow(),
-        raw_data=staged_transaction.raw_transaction_data,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
-    )
-    
-    db.add(confirmed_transaction)
-    db.flush()
-    
-    # Update staged transaction
-    staged_transaction.status = schemas.TransactionStatusEnum.CONFIRMED
-    staged_transaction.reviewed_at = datetime.utcnow()
-    staged_transaction.confirmed_transaction_id = confirmed_transaction.id
-    
-    db.commit()
-    db.refresh(confirmed_transaction)
-    return confirmed_transaction
-
-@app.post("/staged-transactions/bulk-action", response_model=schemas.BulkActionResult)
-def bulk_staged_action(
-    action_data: schemas.BulkTransactionAction,
+@app.post("/staged-transactions/bulk-action")
+def bulk_action_staged_transactions(
+    bulk_action: schemas.BulkStagedAction,
     current_user: schemas.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Perform bulk actions on staged transactions."""
+    
+    # Get all specified staged transactions
     staged_transactions = db.query(models.StagedTransaction).filter(
-        models.StagedTransaction.id.in_(action_data.transaction_ids),
-        models.StagedTransaction.user_id == current_user.id
+        models.StagedTransaction.id.in_(bulk_action.transaction_ids),
+        models.StagedTransaction.user_id == current_user.id,
+        models.StagedTransaction.status == models.TransactionStatus.STAGED
     ).all()
     
-    if not staged_transactions:
-        raise HTTPException(status_code=404, detail="No staged transactions found")
+    if len(staged_transactions) != len(bulk_action.transaction_ids):
+        raise HTTPException(
+            status_code=404, 
+            detail="Some transactions not found or already processed"
+        )
     
     processed_count = 0
     failed_count = 0
@@ -510,6 +350,8 @@ def bulk_staged_action(
     try:
         for staged_transaction in staged_transactions:
             try:
+                action_data = bulk_action
+                
                 if action_data.action == "confirm":
                     # Create confirmed transaction
                     confirmed_transaction = models.Transaction(
@@ -530,15 +372,38 @@ def bulk_staged_action(
                     db.add(confirmed_transaction)
                     db.flush()
                     
-                    staged_transaction.status = schemas.TransactionStatusEnum.CONFIRMED
+                    staged_transaction.status = models.TransactionStatus.CONFIRMED
                     staged_transaction.confirmed_transaction_id = confirmed_transaction.id
                     
                 elif action_data.action == "reject":
-                    staged_transaction.status = schemas.TransactionStatusEnum.REJECTED
+                    staged_transaction.status = models.TransactionStatus.REJECTED
                     
                 elif action_data.action == "update_category":
                     if action_data.category:
                         staged_transaction.category = action_data.category
+                        
+                        # Smart recategorization: find similar transactions
+                        similar_transactions = db.query(models.StagedTransaction).filter(
+                            models.StagedTransaction.user_id == current_user.id,
+                            models.StagedTransaction.beneficiary.ilike(f"%{staged_transaction.beneficiary}%"),
+                            models.StagedTransaction.id != staged_transaction.id,
+                            models.StagedTransaction.status == models.TransactionStatus.STAGED
+                        ).all()
+                        
+                        # Also update confirmed transactions with similar beneficiaries
+                        similar_confirmed = db.query(models.Transaction).filter(
+                            models.Transaction.owner_id == current_user.id,
+                            models.Transaction.beneficiary.ilike(f"%{staged_transaction.beneficiary}%")
+                        ).all()
+                        
+                        for similar in similar_transactions:
+                            similar.category = action_data.category
+                            similar.suggested_category = action_data.category
+                        
+                        for similar in similar_confirmed:
+                            similar.category = action_data.category
+                            similar.updated_at = datetime.utcnow()
+                    
                     if action_data.notes:
                         staged_transaction.notes = action_data.notes
                 
@@ -565,15 +430,29 @@ def bulk_staged_action(
 
 # --- Category Endpoints ---
 
-@app.get("/categories/", response_model=List[schemas.Category])
+@app.get("/categories/", response_model=List[schemas.CategoryWithStats])
 def read_categories(
     current_user: schemas.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get all categories for the current user."""
-    return db.query(models.Category).filter(
+    """Get all categories with transaction counts."""
+    categories = db.query(models.Category).filter(
         models.Category.user_id == current_user.id
     ).order_by(models.Category.name).all()
+    
+    # Add transaction counts
+    result = []
+    for category in categories:
+        transaction_count = db.query(models.Transaction).filter(
+            models.Transaction.owner_id == current_user.id,
+            models.Transaction.category == category.name
+        ).count()
+        
+        category_dict = schemas.CategoryWithStats.from_orm(category).dict()
+        category_dict['transaction_count'] = transaction_count
+        result.append(category_dict)
+    
+    return result
 
 @app.post("/categories/", response_model=schemas.Category)
 def create_category(
@@ -582,29 +461,191 @@ def create_category(
     db: Session = Depends(get_db)
 ):
     """Create a new category."""
+    # Check if category already exists
+    existing = db.query(models.Category).filter(
+        models.Category.user_id == current_user.id,
+        models.Category.name == category.name
+    ).first()
+    
+    if existing:
+        raise HTTPException(status_code=400, detail="Category already exists")
+    
     db_category = models.Category(
         **category.dict(),
-        user_id=current_user.id,
-        created_at=datetime.utcnow()
+        user_id=current_user.id
     )
     db.add(db_category)
     db.commit()
     db.refresh(db_category)
+    
     return db_category
 
-# --- Upload Session Endpoints ---
-
-@app.get("/upload-sessions/", response_model=List[schemas.UploadSession])
-def read_upload_sessions(
-    skip: int = 0,
-    limit: int = 50,
+@app.put("/categories/{category_id}", response_model=schemas.Category)
+def update_category(
+    category_id: int,
+    category_update: schemas.CategoryUpdate,
     current_user: schemas.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get upload sessions for the current user."""
-    return db.query(models.UploadSession).filter(
+    """Update a category and all associated transactions."""
+    category = db.query(models.Category).filter(
+        models.Category.id == category_id,
+        models.Category.user_id == current_user.id
+    ).first()
+    
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+    
+    old_name = category.name
+    
+    # Update category
+    for field, value in category_update.dict(exclude_unset=True).items():
+        setattr(category, field, value)
+    
+    # If name changed, update all transactions
+    if category_update.name and category_update.name != old_name:
+        # Update confirmed transactions
+        db.query(models.Transaction).filter(
+            models.Transaction.owner_id == current_user.id,
+            models.Transaction.category == old_name
+        ).update({"category": category_update.name, "updated_at": datetime.utcnow()})
+        
+        # Update staged transactions
+        db.query(models.StagedTransaction).filter(
+            models.StagedTransaction.user_id == current_user.id,
+            models.StagedTransaction.category == old_name
+        ).update({"category": category_update.name})
+    
+    db.commit()
+    db.refresh(category)
+    
+    return category
+
+@app.delete("/categories/{category_id}")
+def delete_category(
+    category_id: int,
+    current_user: schemas.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Delete a category."""
+    category = db.query(models.Category).filter(
+        models.Category.id == category_id,
+        models.Category.user_id == current_user.id
+    ).first()
+    
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+    
+    # Check if category is in use
+    transaction_count = db.query(models.Transaction).filter(
+        models.Transaction.owner_id == current_user.id,
+        models.Transaction.category == category.name
+    ).count()
+    
+    if transaction_count > 0:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Cannot delete category '{category.name}' - it's used by {transaction_count} transactions"
+        )
+    
+    db.delete(category)
+    db.commit()
+    
+    return {"message": f"Category '{category.name}' deleted successfully"}
+
+# --- Analytics Endpoints ---
+
+@app.get("/analytics/summary")
+def get_analytics_summary(
+    date_from: Optional[str] = Query(default=None),
+    date_to: Optional[str] = Query(default=None),
+    current_user: schemas.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get financial analytics summary."""
+    
+    # Build base query
+    query = db.query(models.Transaction).filter(models.Transaction.owner_id == current_user.id)
+    
+    # Apply date filters
+    if date_from:
+        try:
+            date_from_obj = datetime.strptime(date_from, "%Y-%m-%d").date()
+            query = query.filter(models.Transaction.transaction_date >= date_from_obj)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date_from format. Use YYYY-MM-DD")
+    
+    if date_to:
+        try:
+            date_to_obj = datetime.strptime(date_to, "%Y-%m-%d").date()
+            query = query.filter(models.Transaction.transaction_date <= date_to_obj)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date_to format. Use YYYY-MM-DD")
+    
+    # Calculate summary statistics
+    total_transactions = query.count()
+    
+    # Income and expenses
+    income_sum = query.filter(models.Transaction.amount > 0).with_entities(
+        func.sum(models.Transaction.amount)
+    ).scalar() or Decimal('0.00')
+    
+    expense_sum = query.filter(models.Transaction.amount < 0).with_entities(
+        func.sum(models.Transaction.amount)
+    ).scalar() or Decimal('0.00')
+    
+    # Top categories
+    category_stats = query.filter(
+        models.Transaction.category.isnot(None)
+    ).with_entities(
+        models.Transaction.category,
+        func.count(models.Transaction.id).label('count'),
+        func.sum(models.Transaction.amount).label('total')
+    ).group_by(models.Transaction.category).order_by(desc('count')).limit(10).all()
+    
+    # Monthly trends (last 12 months)
+    monthly_stats = query.with_entities(
+        func.date_trunc('month', models.Transaction.transaction_date).label('month'),
+        func.count(models.Transaction.id).label('count'),
+        func.sum(models.Transaction.amount).label('total')
+    ).group_by('month').order_by('month').all()
+    
+    return {
+        "total_transactions": total_transactions,
+        "total_income": float(income_sum),
+        "total_expenses": float(expense_sum),
+        "net_flow": float(income_sum + expense_sum),
+        "top_categories": [
+            {
+                "category": stat[0],
+                "transaction_count": stat[1],
+                "total_amount": float(stat[2])
+            }
+            for stat in category_stats
+        ],
+        "monthly_trends": [
+            {
+                "month": stat[0].strftime("%Y-%m") if stat[0] else None,
+                "transaction_count": stat[1],
+                "total_amount": float(stat[2])
+            }
+            for stat in monthly_stats
+        ]
+    }
+
+# --- Upload Session Management ---
+
+@app.get("/upload-sessions/", response_model=List[schemas.UploadSession])
+def read_upload_sessions(
+    current_user: schemas.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get user's upload sessions."""
+    sessions = db.query(models.UploadSession).filter(
         models.UploadSession.user_id == current_user.id
-    ).order_by(desc(models.UploadSession.upload_date)).offset(skip).limit(limit).all()
+    ).order_by(desc(models.UploadSession.created_at)).limit(20).all()
+    
+    return sessions
 
 @app.get("/upload-sessions/{session_id}", response_model=schemas.UploadSession)
 def read_upload_session(
@@ -612,11 +653,17 @@ def read_upload_session(
     current_user: schemas.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get a specific upload session."""
+    """Get specific upload session details."""
     session = db.query(models.UploadSession).filter(
         models.UploadSession.id == session_id,
         models.UploadSession.user_id == current_user.id
     ).first()
-    if session is None:
+    
+    if not session:
         raise HTTPException(status_code=404, detail="Upload session not found")
+    
     return session
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

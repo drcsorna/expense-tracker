@@ -3,334 +3,494 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Expense Tracker 2.0</title>
+    <title>Expense Tracker 3.0</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        /* Modern CSS Custom Properties for 2025 Design */
+        :root {
+            /* Light Theme Colors */
+            --color-primary: #8b5cf6;
+            --color-primary-dark: #7c3aed;
+            --color-primary-light: #a78bfa;
+            --color-secondary: #06b6d4;
+            --color-accent: #f59e0b;
+            --color-success: #10b981;
+            --color-warning: #f59e0b;
+            --color-error: #ef4444;
+            
+            /* Neutral Colors */
+            --color-surface: #ffffff;
+            --color-surface-secondary: #f8fafc;
+            --color-surface-tertiary: #f1f5f9;
+            --color-surface-elevated: #ffffff;
+            --color-text-primary: #0f172a;
+            --color-text-secondary: #64748b;
+            --color-text-tertiary: #94a3b8;
+            --color-border: #e2e8f0;
+            --color-border-light: #f1f5f9;
+            
+            /* Glass Morphism */
+            --glass-bg: rgba(255, 255, 255, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            
+            /* Gradients */
+            --gradient-primary: linear-gradient(135deg, #8b5cf6 0%, #06b6d4 100%);
+            --gradient-surface: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            
+            /* Spacing Scale */
+            --space-xs: 0.25rem;
+            --space-sm: 0.5rem;
+            --space-md: 1rem;
+            --space-lg: 1.5rem;
+            --space-xl: 2rem;
+            --space-2xl: 3rem;
+            
+            /* Border Radius */
+            --radius-sm: 0.375rem;
+            --radius-md: 0.5rem;
+            --radius-lg: 0.75rem;
+            --radius-xl: 1rem;
+            
+            /* Typography */
+            --font-size-xs: 0.75rem;
+            --font-size-sm: 0.875rem;
+            --font-size-md: 1rem;
+            --font-size-lg: 1.125rem;
+            --font-size-xl: 1.25rem;
+            --font-size-2xl: 1.5rem;
+            --font-size-3xl: 1.875rem;
+            
+            /* Shadows */
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+            --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+            --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Dark Theme */
+        [data-theme="dark"] {
+            --color-surface: #0f172a;
+            --color-surface-secondary: #1e293b;
+            --color-surface-tertiary: #334155;
+            --color-surface-elevated: #1e293b;
+            --color-text-primary: #f8fafc;
+            --color-text-secondary: #cbd5e1;
+            --color-text-tertiary: #94a3b8;
+            --color-border: #334155;
+            --color-border-light: #475569;
+            
+            --glass-bg: rgba(15, 23, 42, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            
+            --gradient-surface: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        }
+
+        /* Global Reset & Base Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', sans-serif;
+            background: var(--gradient-primary);
             min-height: 100vh;
-            color: #1f2937;
-            font-size: 14px;
+            color: var(--color-text-primary);
+            font-size: var(--font-size-md);
+            line-height: 1.6;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
+        /* Modern Container */
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
-            padding: 1rem;
+            padding: var(--space-lg);
         }
 
+        /* Glass Morphism Card */
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--glass-shadow);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .glass-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Modern Header */
         .header {
             text-align: center;
-            margin-bottom: 1.5rem;
+            margin-bottom: var(--space-2xl);
             color: white;
         }
 
-        .section {
-            background: white;
-            border-radius: 8px;
-            padding: 1rem;
-            margin-bottom: 1rem;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        .header h1 {
+            font-size: var(--font-size-3xl);
+            font-weight: 700;
+            margin-bottom: var(--space-sm);
+            background: linear-gradient(45deg, #ffffff, #e2e8f0);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
-        .hidden { display: none !important; }
-
-        /* Authentication */
-        .auth-form {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-            max-width: 600px;
-            margin: 0 auto;
+        .header p {
+            font-size: var(--font-size-lg);
+            opacity: 0.9;
         }
 
-        .form-group {
-            display: flex;
-            flex-direction: column;
-            gap: 0.25rem;
-        }
-
-        .form-group label {
-            font-weight: 500;
-            font-size: 0.75rem;
-            color: #374151;
-        }
-
-        input, select, textarea {
-            padding: 0.5rem;
-            border: 1px solid #d1d5db;
-            border-radius: 4px;
-            font-size: 0.75rem;
-        }
-
-        input:focus, select:focus, textarea:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
-        }
-
-        /* Buttons */
-        .btn {
-            padding: 0.5rem 0.75rem;
-            border: none;
-            border-radius: 4px;
+        /* Theme Toggle */
+        .theme-toggle {
+            position: fixed;
+            top: var(--space-lg);
+            right: var(--space-lg);
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 50px;
+            padding: var(--space-sm);
             cursor: pointer;
-            font-size: 0.75rem;
-            font-weight: 500;
-            transition: all 0.2s;
-            background: #667eea;
-            color: white;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: var(--font-size-lg);
         }
 
-        .btn:hover { background: #5a67d8; transform: translateY(-1px); }
-        .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
-
-        .btn-sm { padding: 0.25rem 0.5rem; font-size: 0.625rem; }
-        .btn-xs { padding: 0.125rem 0.375rem; font-size: 0.625rem; }
-        .btn-secondary { background: #6b7280; }
-        .btn-success { background: #10b981; }
-        .btn-warning { background: #f59e0b; }
-        .btn-danger { background: #ef4444; }
+        .theme-toggle:hover {
+            transform: scale(1.1);
+        }
 
         /* Connection Status */
         .connection-status {
             position: fixed;
-            top: 1rem;
-            right: 1rem;
-            padding: 0.5rem 0.75rem;
-            border-radius: 20px;
-            font-size: 0.625rem;
+            top: var(--space-lg);
+            left: var(--space-lg);
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 50px;
+            padding: var(--space-sm) var(--space-md);
+            font-size: var(--font-size-sm);
             font-weight: 500;
             z-index: 1000;
+            transition: all 0.3s ease;
         }
 
         .connection-online {
-            background: #d1fae5;
-            color: #065f46;
+            color: var(--color-success);
         }
 
         .connection-offline {
-            background: #fee2e2;
-            color: #991b1b;
+            color: var(--color-error);
         }
 
-        /* File Upload */
-        .upload-area {
-            border: 2px dashed #d1d5db;
-            border-radius: 8px;
-            padding: 1.5rem;
-            text-align: center;
-            transition: all 0.3s;
+        /* Section Styling */
+        .section {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-xl);
+            padding: var(--space-xl);
+            margin-bottom: var(--space-xl);
+            box-shadow: var(--glass-shadow);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .section h2 {
+            font-size: var(--font-size-xl);
+            font-weight: 600;
+            margin-bottom: var(--space-lg);
+            color: var(--color-text-primary);
+        }
+
+        /* Modern Forms */
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-xs);
+            margin-bottom: var(--space-lg);
+        }
+
+        .form-group label {
+            font-weight: 500;
+            font-size: var(--font-size-sm);
+            color: var(--color-text-secondary);
+            transition: all 0.3s ease;
+        }
+
+        .input-wrapper {
+            position: relative;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: var(--space-md);
+            border: 2px solid var(--color-border);
+            border-radius: var(--radius-md);
+            font-size: var(--font-size-md);
+            background: var(--color-surface);
+            color: var(--color-text-primary);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+            transform: translateY(-1px);
+        }
+
+        /* Floating Labels */
+        .floating-label {
+            position: relative;
+        }
+
+        .floating-label input {
+            padding: var(--space-lg) var(--space-md) var(--space-sm);
+        }
+
+        .floating-label label {
+            position: absolute;
+            left: var(--space-md);
+            top: 50%;
+            transform: translateY(-50%);
+            background: var(--color-surface);
+            padding: 0 var(--space-xs);
+            font-size: var(--font-size-md);
+            color: var(--color-text-tertiary);
+            pointer-events: none;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .floating-label input:focus + label,
+        .floating-label input:not(:placeholder-shown) + label {
+            top: 0;
+            font-size: var(--font-size-sm);
+            color: var(--color-primary);
+        }
+
+        /* Modern Buttons */
+        .btn {
+            padding: var(--space-md) var(--space-lg);
+            border: none;
+            border-radius: var(--radius-md);
             cursor: pointer;
+            font-size: var(--font-size-md);
+            font-weight: 500;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: var(--color-primary);
+            color: white;
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-sm);
+            text-decoration: none;
+            min-height: 44px;
+            justify-content: center;
+        }
+
+        .btn:hover {
+            background: var(--color-primary-dark);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: var(--color-text-secondary);
+        }
+
+        .btn-secondary:hover {
+            background: var(--color-text-primary);
+        }
+
+        .btn-success {
+            background: var(--color-success);
+        }
+
+        .btn-warning {
+            background: var(--color-warning);
+        }
+
+        .btn-error {
+            background: var(--color-error);
+        }
+
+        .btn-sm {
+            padding: var(--space-sm) var(--space-md);
+            font-size: var(--font-size-sm);
+            min-height: 36px;
+        }
+
+        .btn-xs {
+            padding: var(--space-xs) var(--space-sm);
+            font-size: var(--font-size-xs);
+            min-height: 28px;
+        }
+
+        /* Modern Upload Area */
+        .upload-area {
+            border: 2px dashed var(--color-border);
+            border-radius: var(--radius-lg);
+            padding: var(--space-2xl);
+            text-align: center;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            background: var(--color-surface-secondary);
         }
 
         .upload-area:hover, .upload-area.drag-over {
-            border-color: #667eea;
-            background: #f8faff;
+            border-color: var(--color-primary);
+            background: var(--color-primary-light);
+            background-opacity: 0.1;
+            transform: scale(1.02);
         }
 
-        .file-input {
-            display: none;
+        .upload-area .upload-icon {
+            font-size: var(--font-size-3xl);
+            margin-bottom: var(--space-md);
+            opacity: 0.6;
         }
 
-        /* Progress Bar */
+        /* Progress System */
+        .progress-container {
+            margin: var(--space-lg) 0;
+        }
+
+        .progress-stages {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: var(--space-md);
+        }
+
+        .progress-stage {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: var(--space-sm);
+            flex: 1;
+            position: relative;
+        }
+
+        .progress-stage:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 16px;
+            left: 60%;
+            right: -40%;
+            height: 2px;
+            background: var(--color-border);
+            transition: all 0.3s ease;
+        }
+
+        .progress-stage.active::after,
+        .progress-stage.completed::after {
+            background: var(--color-primary);
+        }
+
+        .progress-stage-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--color-border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: var(--font-size-sm);
+            transition: all 0.3s ease;
+        }
+
+        .progress-stage.active .progress-stage-icon {
+            background: var(--color-primary);
+            color: white;
+            animation: pulse 1.5s infinite;
+        }
+
+        .progress-stage.completed .progress-stage-icon {
+            background: var(--color-success);
+            color: white;
+        }
+
         .progress-bar {
-            background: #e5e7eb;
-            border-radius: 6px;
-            height: 6px;
-            margin: 0.5rem 0;
+            background: var(--color-border);
+            border-radius: 50px;
+            height: 8px;
             overflow: hidden;
+            position: relative;
         }
 
         .progress-fill {
-            background: linear-gradient(90deg, #667eea, #764ba2);
+            background: linear-gradient(90deg, var(--color-primary), var(--color-secondary));
             height: 100%;
-            transition: width 0.3s ease;
+            border-radius: 50px;
+            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
         }
 
-        .progress-live {
-            position: fixed;
-            bottom: 1rem;
-            right: 1rem;
-            background: white;
-            padding: 0.75rem;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            width: 300px;
-            z-index: 1000;
+        .progress-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            animation: shimmer 1.5s infinite;
         }
 
-        /* Tabs */
+        /* Modern Tabs */
         .tabs {
             display: flex;
-            border-bottom: 1px solid #e5e7eb;
-            margin-bottom: 1rem;
+            background: var(--color-surface-secondary);
+            border-radius: var(--radius-lg);
+            padding: var(--space-xs);
+            margin-bottom: var(--space-lg);
         }
 
         .tab {
-            padding: 0.5rem 1rem;
+            flex: 1;
+            padding: var(--space-md);
+            text-align: center;
             cursor: pointer;
-            border-bottom: 2px solid transparent;
-            font-size: 0.75rem;
+            border-radius: var(--radius-md);
             font-weight: 500;
-            transition: all 0.2s;
+            font-size: var(--font-size-sm);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            color: var(--color-text-secondary);
         }
 
         .tab:hover {
-            background: #f9fafb;
+            color: var(--color-text-primary);
+            background: rgba(139, 92, 246, 0.1);
         }
 
         .tab.active {
-            border-bottom-color: #667eea;
-            color: #667eea;
+            background: var(--color-primary);
+            color: white;
+            box-shadow: var(--shadow-md);
         }
 
-        .tab-content {
-            display: none;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
-        /* Stats */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-            gap: 0.75rem;
-            margin-bottom: 1rem;
-        }
-
-        .stat-card {
-            background: #f9fafb;
-            padding: 0.75rem;
-            border-radius: 6px;
-            text-align: center;
-        }
-
-        .stat-value {
-            font-size: 1rem;
-            font-weight: 700;
-            color: #1f2937;
-        }
-
-        .stat-label {
-            font-size: 0.625rem;
-            color: #6b7280;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        /* Toolbar */
-        .toolbar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1rem;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-        }
-
-        /* Transactions */
-        .transaction-list {
-            background: white;
-            border: 1px solid #e5e7eb;
-            border-radius: 6px;
-            max-height: 400px;
-            overflow-y: auto;
-        }
-
-        .transaction-item {
-            padding: 0.5rem;
-            border-bottom: 1px solid #f3f4f6;
-            display: grid;
-            grid-template-columns: 1fr auto auto;
-            gap: 0.5rem;
-            align-items: center;
-            transition: background-color 0.2s;
-            cursor: pointer;
-            font-size: 0.75rem;
-        }
-
-        .transaction-item:hover {
-            background-color: #f9fafb;
-        }
-
-        .transaction-details {
-            min-width: 0;
-        }
-
-        .transaction-beneficiary {
-            font-weight: 500;
-            color: #1f2937;
-            margin-bottom: 0.125rem;
-            font-size: 0.75rem;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .transaction-date {
-            color: #6b7280;
-            font-size: 0.625rem;
-        }
-
-        .transaction-category {
-            color: #8b5cf6;
-            font-size: 0.5rem;
-            background: #f3f4f6;
-            padding: 0.125rem 0.25rem;
-            border-radius: 8px;
-            display: inline-block;
-            margin-top: 0.125rem;
-            max-width: 80px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .transaction-amount {
-            font-weight: 600;
-            padding: 0.25rem 0.375rem;
-            border-radius: 3px;
-            font-size: 0.75rem;
-            min-width: 60px;
-            text-align: center;
-        }
-
-        .amount-positive {
-            color: #10b981;
-            background: #d1fae5;
-        }
-
-        .amount-negative {
-            color: #ef4444;
-            background: #fee2e2;
-        }
-
-        /* Pagination */
-        .pagination {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 0.75rem;
-            padding: 0.5rem;
-            background: #f9fafb;
-            border-radius: 4px;
-            flex-wrap: wrap;
-            gap: 0.375rem;
-            font-size: 0.75rem;
-        }
-
-        .pagination-controls {
-            display: flex;
-            gap: 0.25rem;
-            align-items: center;
-        }
-
-        /* Modals */
+        /* Modern Modals */
         .modal {
             display: none;
             position: fixed;
@@ -338,10 +498,12 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.5);
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(8px);
             z-index: 2000;
             align-items: center;
             justify-content: center;
+            animation: fadeIn 0.3s ease;
         }
 
         .modal.active {
@@ -349,128 +511,317 @@
         }
 
         .modal-content {
-            background: white;
-            border-radius: 8px;
+            background: var(--color-surface);
+            border-radius: var(--radius-xl);
             width: 90vw;
-            max-width: 500px;
+            max-width: 600px;
             max-height: 90vh;
-            overflow-y: auto;
+            overflow: hidden;
+            box-shadow: var(--shadow-xl);
+            animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .modal-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 1rem;
-            border-bottom: 1px solid #e5e7eb;
+            padding: var(--space-lg);
+            border-bottom: 1px solid var(--color-border);
+            background: var(--color-surface-secondary);
         }
 
         .modal-header h3 {
-            font-size: 1rem;
+            font-size: var(--font-size-lg);
             font-weight: 600;
+            color: var(--color-text-primary);
         }
 
         .modal-close {
             background: none;
             border: none;
-            font-size: 1.5rem;
+            font-size: var(--font-size-xl);
             cursor: pointer;
-            color: #6b7280;
+            color: var(--color-text-secondary);
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .modal-close:hover {
+            background: var(--color-error);
+            color: white;
         }
 
         .modal-body {
-            padding: 1rem;
+            padding: var(--space-lg);
+            max-height: 70vh;
+            overflow-y: auto;
         }
 
-        /* Filters */
-        .filters {
+        /* Transaction Lists */
+        .transaction-item {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 0.75rem;
-            margin-bottom: 1rem;
+            grid-template-columns: 1fr auto auto;
+            gap: var(--space-md);
+            padding: var(--space-lg);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            margin-bottom: var(--space-sm);
+            background: var(--color-surface);
+            transition: all 0.3s ease;
         }
 
-        /* Split Transaction */
-        .split-container {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            margin-bottom: 0.5rem;
-            padding: 0.5rem;
-            background: #f9fafb;
-            border-radius: 4px;
+        .transaction-item:hover {
+            border-color: var(--color-primary);
+            box-shadow: var(--shadow-md);
+            transform: translateY(-1px);
         }
 
-        /* Checkbox */
-        .checkbox-group {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            margin: 0.5rem 0;
+        .transaction-info h4 {
+            font-weight: 600;
+            color: var(--color-text-primary);
+            margin-bottom: var(--space-xs);
         }
 
-        /* Bulk Actions */
+        .transaction-meta {
+            font-size: var(--font-size-sm);
+            color: var(--color-text-secondary);
+        }
+
+        .transaction-amount {
+            font-size: var(--font-size-lg);
+            font-weight: 600;
+            text-align: right;
+        }
+
+        .amount-positive {
+            color: var(--color-success);
+        }
+
+        .amount-negative {
+            color: var(--color-error);
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--space-lg);
+            margin-bottom: var(--space-xl);
+        }
+
+        .stat-card {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-lg);
+            padding: var(--space-lg);
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .stat-value {
+            font-size: var(--font-size-2xl);
+            font-weight: 700;
+            color: var(--color-primary);
+            margin-bottom: var(--space-sm);
+        }
+
+        .stat-label {
+            font-size: var(--font-size-sm);
+            color: var(--color-text-secondary);
+            font-weight: 500;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideIn {
+            from { 
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to { 
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .container {
+                padding: var(--space-md);
+            }
+            
+            .section {
+                padding: var(--space-lg);
+            }
+            
+            .modal-content {
+                width: 95vw;
+                margin: var(--space-md);
+            }
+            
+            .transaction-item {
+                grid-template-columns: 1fr auto;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .theme-toggle, .connection-status {
+                position: relative;
+                top: auto;
+                right: auto;
+                left: auto;
+                display: inline-flex;
+                margin: var(--space-sm);
+            }
+        }
+
+        /* Utility Classes */
+        .hidden { display: none !important; }
+        .flex { display: flex; }
+        .grid { display: grid; }
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .font-bold { font-weight: 700; }
+        .font-medium { font-weight: 500; }
+        .text-sm { font-size: var(--font-size-sm); }
+        .text-lg { font-size: var(--font-size-lg); }
+        .mb-0 { margin-bottom: 0; }
+        .mb-sm { margin-bottom: var(--space-sm); }
+        .mb-md { margin-bottom: var(--space-md); }
+        .mb-lg { margin-bottom: var(--space-lg); }
+        .mt-lg { margin-top: var(--space-lg); }
+        .p-md { padding: var(--space-md); }
+        .gap-md { gap: var(--space-md); }
+
+        /* Category and Duplicate Management */
+        .category-suggestion {
+            background: var(--color-warning);
+            color: white;
+            padding: var(--space-xs) var(--space-sm);
+            border-radius: var(--radius-md);
+            font-size: var(--font-size-xs);
+            margin-left: var(--space-sm);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .category-suggestion:hover {
+            background: var(--color-primary);
+        }
+
+        .duplicate-indicator {
+            background: var(--color-error);
+            color: white;
+            padding: var(--space-xs) var(--space-sm);
+            border-radius: var(--radius-md);
+            font-size: var(--font-size-xs);
+            animation: pulse 1.5s infinite;
+        }
+
+        .confidence-score {
+            font-size: var(--font-size-xs);
+            color: var(--color-text-tertiary);
+            margin-left: var(--space-sm);
+        }
+
         .bulk-actions {
             display: flex;
-            gap: 0.5rem;
+            gap: var(--space-sm);
             align-items: center;
+            padding: var(--space-md);
+            background: var(--color-surface-secondary);
+            border-radius: var(--radius-md);
+            margin-bottom: var(--space-lg);
         }
 
-        /* Results */
-        .result-message, .error-message {
-            padding: 0.75rem;
-            border-radius: 4px;
-            margin: 0.5rem 0;
-            font-size: 0.75rem;
+        /* Toast Notifications */
+        .toast {
+            position: fixed;
+            top: var(--space-lg);
+            right: var(--space-lg);
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            padding: var(--space-md);
+            box-shadow: var(--shadow-lg);
+            z-index: 3000;
+            min-width: 300px;
+            animation: slideIn 0.3s ease;
         }
 
-        .result-message {
-            background: #d1fae5;
-            color: #065f46;
-            border: 1px solid #a7f3d0;
+        .toast.success {
+            border-left: 4px solid var(--color-success);
         }
 
-        .error-message {
-            background: #fee2e2;
-            color: #991b1b;
-            border: 1px solid #fca5a5;
+        .toast.error {
+            border-left: 4px solid var(--color-error);
         }
 
-        /* Responsive */
-        @media (max-width: 768px) {
-            .container { padding: 0.5rem; }
-            .auth-form { grid-template-columns: 1fr; }
-            .stats-grid { grid-template-columns: repeat(2, 1fr); }
-            .toolbar { flex-direction: column; align-items: stretch; }
-            .modal-content { width: 95vw; margin: 1rem; }
-            .filters { grid-template-columns: 1fr; }
-            .transaction-item { grid-template-columns: 1fr auto; }
+        .toast.warning {
+            border-left: 4px solid var(--color-warning);
         }
     </style>
 </head>
 <body>
-    <div class="connection-status" id="connection-status">🟢 Connected</div>
+    <!-- Theme Toggle -->
+    <div class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
+        <span id="theme-icon">🌙</span>
+    </div>
+
+    <!-- Connection Status -->
+    <div class="connection-status" id="connection-status">
+        <span id="connection-icon">🟢</span> Connected
+    </div>
 
     <div class="container">
+        <!-- Modern Header -->
         <div class="header">
-            <h1>💰 Expense Tracker 2.0</h1>
-            <p>Smart expense management with staged data processing</p>
+            <h1>💰 Expense Tracker 3.0</h1>
+            <p>Intelligent expense management with ML-powered categorization</p>
         </div>
 
         <!-- Authentication Section -->
         <div id="auth-section" class="section">
             <h2>🔐 Authentication</h2>
-            <div class="auth-form">
-                <div class="form-group">
-                    <label for="email">Email:</label>
-                    <input type="email" id="email" placeholder="Enter your email">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--space-lg);">
+                <div class="floating-label">
+                    <input type="email" id="email" placeholder=" " required>
+                    <label for="email">📧 Email Address</label>
                 </div>
-                <div class="form-group">
-                    <label for="password">Password:</label>
-                    <input type="password" id="password" placeholder="Enter your password">
+                <div class="floating-label">
+                    <input type="password" id="password" placeholder=" " required>
+                    <label for="password">🔒 Password</label>
                 </div>
-                <button class="btn" onclick="login()">🔑 Login</button>
-                <button class="btn btn-secondary" onclick="register()">📝 Register</button>
+            </div>
+            <div style="display: flex; gap: var(--space-md); margin-top: var(--space-lg);">
+                <button class="btn" onclick="login()">🚀 Sign In</button>
+                <button class="btn btn-secondary" onclick="register()">📝 Create Account</button>
             </div>
         </div>
 
@@ -478,236 +829,222 @@
         <div id="upload-section" class="section hidden">
             <h2>📤 Upload Transactions</h2>
             
-            <div class="upload-area" onclick="document.getElementById('file-input').click()">
-                <input type="file" id="file-input" class="file-input" accept=".csv,.xlsx,.xls" multiple onchange="handleFileSelect(event)">
-                <div>
-                    <p>📁 <strong>Click to select files</strong> or drag and drop</p>
-                    <p style="font-size: 0.75rem; color: #6b7280; margin-top: 0.5rem;">
-                        Supported: CSV, Excel (.xlsx, .xls) • Max 25MB per file
+            <!-- Upload Tabs -->
+            <div class="tabs">
+                <div class="tab active" onclick="switchUploadTab('transactions')">
+                    💳 Transaction Data
+                </div>
+                <div class="tab" onclick="switchUploadTab('bootstrap')">
+                    🎯 Category Bootstrap
+                </div>
+            </div>
+
+            <!-- Transaction Upload -->
+            <div id="transactions-upload" class="upload-tab-content">
+                <div class="upload-area" onclick="document.getElementById('file-input').click()">
+                    <input type="file" id="file-input" class="hidden" accept=".csv,.xlsx,.xls" multiple onchange="handleFileSelect(event)">
+                    <div class="upload-icon">📁</div>
+                    <h3>Drop files here or click to browse</h3>
+                    <p style="color: var(--color-text-secondary); margin-top: var(--space-sm);">
+                        Supported: CSV, Excel (.xlsx, .xls) • Max 50MB per file
                     </p>
                 </div>
             </div>
 
-            <div id="file-list" class="hidden" style="margin-top: 1rem;">
-                <h4>Selected Files:</h4>
-                <div id="selected-files"></div>
-                
-                <button class="btn" onclick="uploadFiles()">🚀 Upload & Process</button>
-                <button class="btn btn-secondary" onclick="clearFiles()">Clear</button>
-                
-                <div id="upload-progress" class="hidden" style="margin-top: 0.75rem;">
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+            <!-- Bootstrap Upload -->
+            <div id="bootstrap-upload" class="upload-tab-content hidden">
+                <div class="upload-area" onclick="document.getElementById('bootstrap-file-input').click()">
+                    <input type="file" id="bootstrap-file-input" class="hidden" accept=".csv,.xlsx,.xls" onchange="handleBootstrapFileSelect(event)">
+                    <div class="upload-icon">🎯</div>
+                    <h3>Upload categorized transactions</h3>
+                    <p style="color: var(--color-text-secondary); margin-top: var(--space-sm);">
+                        Upload Excel/CSV with existing categorizations to train the ML engine
+                    </p>
+                    <div style="margin-top: var(--space-md); font-size: var(--font-size-sm); color: var(--color-text-tertiary);">
+                        Required columns: Date, Beneficiary, Amount, Category
                     </div>
-                    <p id="progress-text" style="text-align: center; font-size: 0.625rem; color: #6b7280;">Ready to upload...</p>
+                </div>
+            </div>
+
+            <!-- Progress System -->
+            <div id="upload-progress" class="progress-container hidden">
+                <div class="progress-stages">
+                    <div class="progress-stage" id="stage-parsing">
+                        <div class="progress-stage-icon">📄</div>
+                        <span>Parsing</span>
+                    </div>
+                    <div class="progress-stage" id="stage-analyzing">
+                        <div class="progress-stage-icon">🔍</div>
+                        <span>Analyzing</span>
+                    </div>
+                    <div class="progress-stage" id="stage-categorizing">
+                        <div class="progress-stage-icon">🏷️</div>
+                        <span>Categorizing</span>
+                    </div>
+                    <div class="progress-stage" id="stage-finalizing">
+                        <div class="progress-stage-icon">✅</div>
+                        <span>Finalizing</span>
+                    </div>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+                </div>
+                <div style="text-align: center; margin-top: var(--space-md); color: var(--color-text-secondary);">
+                    <span id="progress-message">Initializing...</span>
+                    <span id="progress-percent" style="margin-left: var(--space-md); font-weight: 600;">0%</span>
                 </div>
             </div>
 
             <div id="upload-results"></div>
         </div>
 
-        <!-- Transactions Section -->
-        <div id="transactions-section" class="section hidden">
-            <h2>📊 Transaction Management</h2>
-            
+        <!-- Main Content Tabs -->
+        <div id="main-section" class="section hidden">
             <div class="tabs">
-                <div class="tab active" onclick="switchTab('confirmed')">✅ Confirmed</div>
-                <div class="tab" onclick="switchTab('staged')">⏳ Staged</div>
-                <div class="tab" onclick="switchTab('stats')">📈 Analytics</div>
-            </div>
-
-            <!-- Confirmed Transactions Tab -->
-            <div id="confirmed-tab" class="tab-content active">
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-value" id="total-transactions">0</div>
-                        <div class="stat-label">Total</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="total-income">€0.00</div>
-                        <div class="stat-label">Income</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="total-expenses">€0.00</div>
-                        <div class="stat-label">Expenses</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="net-balance">€0.00</div>
-                        <div class="stat-label">Balance</div>
-                    </div>
-                </div>
-
-                <div class="toolbar">
-                    <div>
-                        <button class="btn" onclick="loadTransactions()">
-                            <span id="refresh-icon">🔄</span> Refresh
-                        </button>
-                        <button class="btn" onclick="openAllTransactionsModal()">📋 View All</button>
-                        <button class="btn btn-danger" onclick="clearAllTransactions()">🗑️ Clear All</button>
-                    </div>
-                    
-                    <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <span style="font-size: 0.625rem; color: #6b7280;">Show:</span>
-                        <select id="page-size" onchange="changePageSize()" style="padding: 0.25rem; border-radius: 3px; border: 1px solid #d1d5db; font-size: 0.625rem;">
-                            <option value="20">20</option>
-                            <option value="50">50</option>
-                            <option value="100">100</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div id="transactions-list" class="transaction-list">
-                    <div style="padding: 1.5rem; text-align: center; color: #6b7280; font-size: 0.75rem;">No transactions loaded</div>
-                </div>
-
-                <div id="pagination" class="pagination hidden">
-                    <div style="display: flex; align-items: center; gap: 0.375rem; font-size: 0.625rem; color: #6b7280;">
-                        <span>Showing <span id="showing-range">0</span> of <span id="total-count">0</span></span>
-                    </div>
-                    
-                    <div class="pagination-controls">
-                        <button class="btn btn-xs" id="prev-btn" onclick="previousPage()">← Prev</button>
-                        <span id="page-info" style="font-size: 0.625rem; color: #6b7280; padding: 0 0.375rem;">Page 1</span>
-                        <button class="btn btn-xs" id="next-btn" onclick="nextPage()">Next →</button>
-                    </div>
-                </div>
+                <div class="tab active" onclick="switchTab('staged')">📋 Review Queue</div>
+                <div class="tab" onclick="switchTab('transactions')">💳 All Transactions</div>
+                <div class="tab" onclick="switchTab('duplicates')">🔄 Duplicates</div>
+                <div class="tab" onclick="switchTab('categories')">🏷️ Categories</div>
+                <div class="tab" onclick="switchTab('stats')">📊 Analytics</div>
             </div>
 
             <!-- Staged Transactions Tab -->
             <div id="staged-tab" class="tab-content">
-                <div class="toolbar">
-                    <div>
-                        <button class="btn" onclick="loadStagedTransactions()">🔄 Refresh</button>
-                        <span id="staged-count" style="font-size: 0.75rem; color: #6b7280;">0 staged</span>
-                    </div>
-                    
-                    <div class="bulk-actions hidden" id="bulk-actions">
-                        <button class="btn btn-success btn-sm" onclick="bulkConfirm()">✅ Confirm Selected</button>
-                        <button class="btn btn-danger btn-sm" onclick="bulkReject()">❌ Reject Selected</button>
-                        <button class="btn btn-warning btn-sm" onclick="bulkCategorize()">🏷️ Categorize</button>
+                <div class="flex justify-between align-items-center mb-lg">
+                    <h3>📋 Transactions Awaiting Review</h3>
+                    <div class="bulk-actions">
+                        <span style="font-size: var(--font-size-sm); color: var(--color-text-secondary);">Bulk Actions:</span>
+                        <button class="btn btn-sm btn-success" onclick="bulkConfirm()">✅ Confirm Selected</button>
+                        <button class="btn btn-sm btn-error" onclick="bulkReject()">❌ Reject Selected</button>
+                        <button class="btn btn-sm btn-warning" onclick="bulkCategorize()">🏷️ Categorize Selected</button>
                     </div>
                 </div>
-                
                 <div id="staged-list" class="transaction-list">
-                    <div style="padding: 1.5rem; text-align: center; color: #6b7280; font-size: 0.75rem;">No staged transactions</div>
+                    <div class="text-center p-md">
+                        <span style="color: var(--color-text-secondary);">No transactions awaiting review</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- All Transactions Tab -->
+            <div id="transactions-tab" class="tab-content hidden">
+                <div class="flex justify-between align-items-center mb-lg">
+                    <h3>💳 All Transactions</h3>
+                    <button class="btn btn-sm" onclick="openModal('all-transactions-modal')">🔍 Advanced Filter</button>
+                </div>
+                <div id="transactions-list" class="transaction-list">
+                    <div class="text-center p-md">
+                        <span style="color: var(--color-text-secondary);">No transactions found</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Duplicates Tab -->
+            <div id="duplicates-tab" class="tab-content hidden">
+                <div class="flex justify-between align-items-center mb-lg">
+                    <h3>🔄 Duplicate Management</h3>
+                    <button class="btn btn-sm" onclick="scanForDuplicates()">🔍 Scan for Duplicates</button>
+                </div>
+                <div id="duplicates-list" class="transaction-list">
+                    <div class="text-center p-md">
+                        <span style="color: var(--color-text-secondary);">No duplicates detected</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Categories Tab -->
+            <div id="categories-tab" class="tab-content hidden">
+                <div class="flex justify-between align-items-center mb-lg">
+                    <h3>🏷️ Category Management</h3>
+                    <button class="btn btn-sm" onclick="openModal('category-modal')">➕ Add Category</button>
+                </div>
+                <div id="categories-list">
+                    <div class="text-center p-md">
+                        <span style="color: var(--color-text-secondary);">Loading categories...</span>
+                    </div>
                 </div>
             </div>
 
             <!-- Analytics Tab -->
-            <div id="stats-tab" class="tab-content">
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+            <div id="stats-tab" class="tab-content hidden">
+                <h3>📊 Financial Analytics</h3>
+                <div class="stats-grid">
                     <div class="stat-card">
-                        <h4 style="margin-bottom: 0.5rem; color: #1f2937;">Monthly Overview</h4>
-                        <div id="monthly-stats"></div>
+                        <div class="stat-value" id="total-transactions">0</div>
+                        <div class="stat-label">Total Transactions</div>
                     </div>
                     <div class="stat-card">
-                        <h4 style="margin-bottom: 0.5rem; color: #1f2937;">Top Categories</h4>
-                        <div id="category-stats"></div>
+                        <div class="stat-value" id="total-income">€0</div>
+                        <div class="stat-label">Total Income</div>
                     </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="total-expenses">€0</div>
+                        <div class="stat-label">Total Expenses</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="net-flow">€0</div>
+                        <div class="stat-label">Net Flow</div>
+                    </div>
+                </div>
+                <div id="charts-container">
+                    <!-- Charts will be rendered here -->
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Real-time Progress Indicator -->
-    <div id="progress-live" class="progress-live hidden">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
-            <strong>Processing...</strong>
-            <span id="live-progress-percent">0%</span>
-        </div>
-        <div class="progress-bar">
-            <div class="progress-fill" id="live-progress-fill" style="width: 0%"></div>
-        </div>
-        <div id="live-progress-message" style="font-size: 0.625rem; color: #6b7280;">Initializing...</div>
-    </div>
-
-    <!-- All Transactions Modal -->
-    <div id="all-transactions-modal" class="modal">
-        <div class="modal-content" style="width: 95vw; max-width: 1000px;">
-            <div class="modal-header">
-                <h3>All Transactions</h3>
-                <button class="modal-close" onclick="closeModal('all-transactions-modal')">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="filters">
-                    <div class="form-group">
-                        <label>Search:</label>
-                        <input type="text" id="search-input" placeholder="Search beneficiary..." oninput="filterTransactions()">
-                    </div>
-                    <div class="form-group">
-                        <label>Category:</label>
-                        <select id="category-filter" onchange="filterTransactions()">
-                            <option value="">All Categories</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Date From:</label>
-                        <input type="date" id="date-from" onchange="filterTransactions()">
-                    </div>
-                    <div class="form-group">
-                        <label>Date To:</label>
-                        <input type="date" id="date-to" onchange="filterTransactions()">
-                    </div>
-                </div>
-                
-                <div id="all-transactions-list" style="max-height: 400px; overflow-y: auto;">
-                    <!-- Transactions will be loaded here -->
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Edit Transaction Modal -->
+    <!-- Enhanced Edit Modal -->
     <div id="edit-transaction-modal" class="modal">
-        <div class="modal-content" style="width: 90vw; max-width: 500px;">
+        <div class="modal-content">
             <div class="modal-header">
-                <h3>Edit Transaction</h3>
+                <h3>✏️ Edit Transaction</h3>
                 <button class="modal-close" onclick="closeModal('edit-transaction-modal')">&times;</button>
             </div>
             <div class="modal-body">
                 <form id="edit-form">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
-                        <div class="form-group">
-                            <label>Beneficiary:</label>
-                            <input type="text" id="edit-beneficiary" required>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-lg);">
+                        <div class="floating-label">
+                            <input type="text" id="edit-beneficiary" placeholder=" " required>
+                            <label for="edit-beneficiary">Beneficiary</label>
                         </div>
-                        <div class="form-group">
-                            <label>Amount:</label>
-                            <input type="number" step="0.01" id="edit-amount" required>
+                        <div class="floating-label">
+                            <input type="number" step="0.01" id="edit-amount" placeholder=" " required>
+                            <label for="edit-amount">Amount (€)</label>
                         </div>
                     </div>
                     
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-lg); margin-top: var(--space-lg);">
                         <div class="form-group">
-                            <label>Date:</label>
+                            <label>📅 Date</label>
                             <input type="date" id="edit-date" required>
                         </div>
                         <div class="form-group">
-                            <label>Category:</label>
+                            <label>🏷️ Category</label>
                             <select id="edit-category">
                                 <option value="">Select category...</option>
                             </select>
+                            <div id="category-suggestions" class="mt-sm"></div>
                         </div>
                     </div>
                     
-                    <div class="form-group">
-                        <label>Labels (comma-separated):</label>
+                    <div class="form-group mt-lg">
+                        <label>🏷️ Tags (comma-separated)</label>
                         <input type="text" id="edit-labels" placeholder="e.g., work, personal, important">
                     </div>
                     
                     <div class="form-group">
-                        <label>Notes:</label>
-                        <input type="text" id="edit-notes" placeholder="Add notes...">
+                        <label>📝 Notes</label>
+                        <textarea id="edit-notes" rows="3" placeholder="Additional notes..."></textarea>
                     </div>
                     
-                    <div class="checkbox-group">
+                    <div class="flex align-items-center gap-md mt-lg">
                         <input type="checkbox" id="edit-private">
-                        <label for="edit-private">Private Transaction</label>
+                        <label for="edit-private">🔒 Private Transaction</label>
                     </div>
                     
-                    <div style="display: flex; gap: 0.375rem; margin-top: 0.75rem; flex-wrap: wrap;">
-                        <button type="button" class="btn" onclick="saveTransaction()">💾 Save</button>
-                        <button type="button" class="btn btn-warning" onclick="showSplitModal()">✂️ Split</button>
+                    <div class="flex gap-md mt-lg">
+                        <button type="button" class="btn" onclick="saveTransaction()">💾 Save Changes</button>
+                        <button type="button" class="btn btn-warning" onclick="showSplitModal()">✂️ Split Transaction</button>
                         <button type="button" class="btn btn-secondary" onclick="closeModal('edit-transaction-modal')">Cancel</button>
                     </div>
                 </form>
@@ -715,71 +1052,107 @@
         </div>
     </div>
 
-    <!-- Split Transaction Modal -->
-    <div id="split-transaction-modal" class="modal">
-        <div class="modal-content" style="width: 90vw; max-width: 600px;">
+    <!-- Duplicate Comparison Modal -->
+    <div id="duplicate-modal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
             <div class="modal-header">
-                <h3>Split Transaction</h3>
-                <button class="modal-close" onclick="closeModal('split-transaction-modal')">&times;</button>
+                <h3>🔄 Duplicate Comparison</h3>
+                <button class="modal-close" onclick="closeModal('duplicate-modal')">&times;</button>
             </div>
             <div class="modal-body">
-                <div style="margin-bottom: 0.75rem;">
-                    <strong>Original Amount: €<span id="split-original-amount">0.00</span></strong>
-                    <p style="font-size: 0.75rem; color: #6b7280;">Split this transaction into multiple parts</p>
+                <div id="duplicate-comparison" style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-lg);">
+                    <!-- Duplicate transactions will be compared here -->
                 </div>
-                
-                <div id="split-items">
-                    <!-- Split items will be added here -->
+                <div class="flex gap-md mt-lg">
+                    <button class="btn btn-success" onclick="mergeDuplicates()">🔗 Merge Transactions</button>
+                    <button class="btn btn-warning" onclick="keepBoth()">📝 Keep Both</button>
+                    <button class="btn btn-error" onclick="deleteSecond()">🗑️ Delete Second</button>
+                    <button class="btn btn-secondary" onclick="closeModal('duplicate-modal')">Cancel</button>
                 </div>
-                
-                <button class="btn btn-sm" onclick="addSplitItem()">+ Add Split</button>
-                
-                <div style="margin-top: 0.75rem; display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-size: 0.75rem; color: #6b7280;">
-                        Remaining: €<span id="split-remaining">0.00</span>
-                    </span>
-                    <div>
-                        <button class="btn" onclick="applySplit()">✂️ Apply Split</button>
-                        <button class="btn btn-secondary" onclick="closeModal('split-transaction-modal')">Cancel</button>
-                    </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Category Modal -->
+    <div id="category-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🏷️ Manage Categories</h3>
+                <button class="modal-close" onclick="closeModal('category-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Category Name</label>
+                    <input type="text" id="new-category-name" placeholder="Enter category name">
+                </div>
+                <div class="form-group">
+                    <label>Category Color</label>
+                    <input type="color" id="new-category-color" value="#8b5cf6">
+                </div>
+                <div class="form-group">
+                    <label>Category Icon</label>
+                    <input type="text" id="new-category-icon" placeholder="e.g., 🍔, 🚗, 🏠">
+                </div>
+                <div class="flex gap-md mt-lg">
+                    <button class="btn" onclick="createCategory()">➕ Create Category</button>
+                    <button class="btn btn-secondary" onclick="closeModal('category-modal')">Cancel</button>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        // Configuration
-        const API_BASE = window.location.origin.includes('192.168.10.160') && window.location.pathname.includes('/proxy/8000')
-            ? 'http://192.168.10.160:8680/proxy/8000'
-            : window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
+        // Modern Configuration
+        const API_BASE = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
             ? 'http://localhost:8000'
             : window.location.origin;
 
-        // Global state
+        // Global State
         let authToken = localStorage.getItem('auth_token');
         let currentUser = null;
-        let transactions = [];
-        let stagedTransactions = [];
         let categories = [];
+        let stagedTransactions = [];
         let uploadWebSocket = null;
         let currentEditTransaction = null;
+        let duplicatePairs = [];
 
-        // Pagination state
-        let currentPage = 0;
-        let pageSize = 20;
-        let totalTransactions = 0;
+        // Theme Management
+        function initializeTheme() {
+            const savedTheme = localStorage.getItem('theme') || 
+                (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            setTheme(savedTheme);
+        }
 
-        // Initialize app
-        document.addEventListener('DOMContentLoaded', function() {
-            if (authToken) {
-                showTransactionsSection();
-                loadCategories();
-                loadTransactions();
-                loadStagedTransactions();
-            }
-            checkConnection();
-            setupDragAndDrop();
-        });
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            setTheme(newTheme);
+        }
+
+        function setTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme);
+            document.getElementById('theme-icon').textContent = theme === 'light' ? '🌙' : '☀️';
+        }
+
+        // Toast Notifications
+        function showToast(message, type = 'success', duration = 5000) {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>${message}</span>
+                    <button onclick="this.parentElement.parentElement.remove()" style="background: none; border: none; cursor: pointer; color: var(--color-text-secondary);">&times;</button>
+                </div>
+            `;
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.remove();
+                }
+            }, duration);
+        }
 
         // Authentication
         async function login() {
@@ -787,35 +1160,34 @@
             const password = document.getElementById('password').value;
 
             if (!email || !password) {
-                showResult('Please enter both email and password', 'error');
+                showToast('Please enter both email and password', 'error');
                 return;
             }
 
             try {
-                const formData = new FormData();
-                formData.append('username', email);
-                formData.append('password', password);
-
                 const response = await fetch(`${API_BASE}/token`, {
                     method: 'POST',
-                    body: formData
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `username=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`
                 });
 
                 if (response.ok) {
                     const data = await response.json();
                     authToken = data.access_token;
                     localStorage.setItem('auth_token', authToken);
-                    showResult('✅ Login successful!', 'result');
-                    showTransactionsSection();
-                    loadCategories();
-                    loadTransactions();
-                    loadStagedTransactions();
+                    
+                    document.getElementById('auth-section').classList.add('hidden');
+                    document.getElementById('upload-section').classList.remove('hidden');
+                    document.getElementById('main-section').classList.remove('hidden');
+                    
+                    showToast('Welcome back! 🎉', 'success');
+                    await initializeApp();
                 } else {
                     const error = await response.json();
-                    showResult(`❌ Login failed: ${error.detail}`, 'error');
+                    showToast(error.detail || 'Login failed', 'error');
                 }
             } catch (error) {
-                showResult(`❌ Connection error: ${error.message}`, 'error');
+                showToast('Network error. Please try again.', 'error');
             }
         }
 
@@ -824,7 +1196,7 @@
             const password = document.getElementById('password').value;
 
             if (!email || !password) {
-                showResult('Please enter both email and password', 'error');
+                showToast('Please enter both email and password', 'error');
                 return;
             }
 
@@ -836,181 +1208,184 @@
                 });
 
                 if (response.ok) {
-                    showResult('✅ Registration successful! Please login.', 'result');
+                    showToast('Account created! Please sign in.', 'success');
                 } else {
                     const error = await response.json();
-                    showResult(`❌ Registration failed: ${error.detail}`, 'error');
+                    showToast(error.detail || 'Registration failed', 'error');
                 }
             } catch (error) {
-                showResult(`❌ Connection error: ${error.message}`, 'error');
+                showToast('Network error. Please try again.', 'error');
             }
         }
 
-        function logout() {
-            authToken = null;
-            localStorage.removeItem('auth_token');
-            document.getElementById('auth-section').classList.remove('hidden');
-            document.getElementById('upload-section').classList.add('hidden');
-            document.getElementById('transactions-section').classList.add('hidden');
-            showResult('👋 Logged out successfully', 'result');
-        }
+        // App Initialization
+        async function initializeApp() {
+            if (!authToken) {
+                document.getElementById('auth-section').classList.remove('hidden');
+                return;
+            }
 
-        function showTransactionsSection() {
-            document.getElementById('auth-section').classList.add('hidden');
-            document.getElementById('upload-section').classList.remove('hidden');
-            document.getElementById('transactions-section').classList.remove('hidden');
-        }
-
-        // Connection status
-        async function checkConnection() {
             try {
-                const response = await fetch(`${API_BASE}/health`);
-                const statusElement = document.getElementById('connection-status');
-                
-                if (response.ok) {
-                    statusElement.className = 'connection-status connection-online';
-                    statusElement.textContent = '🟢 Connected';
-                } else {
-                    throw new Error('Server error');
-                }
+                // Load initial data
+                await Promise.all([
+                    loadCategories(),
+                    loadStagedTransactions(),
+                    loadTransactions(),
+                    loadStats()
+                ]);
+
+                document.getElementById('auth-section').classList.add('hidden');
+                document.getElementById('upload-section').classList.remove('hidden');
+                document.getElementById('main-section').classList.remove('hidden');
             } catch (error) {
-                const statusElement = document.getElementById('connection-status');
-                statusElement.className = 'connection-status connection-offline';
-                statusElement.textContent = '🔴 Offline';
+                console.error('App initialization failed:', error);
+                localStorage.removeItem('auth_token');
+                authToken = null;
+                document.getElementById('auth-section').classList.remove('hidden');
             }
         }
 
-        // File handling
-        function setupDragAndDrop() {
-            const uploadArea = document.querySelector('.upload-area');
+        // Upload Tab Management
+        function switchUploadTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelector(`[onclick="switchUploadTab('${tabName}')"]`).classList.add('active');
             
-            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-                uploadArea.addEventListener(eventName, preventDefaults, false);
-            });
-
-            ['dragenter', 'dragover'].forEach(eventName => {
-                uploadArea.addEventListener(eventName, highlight, false);
-            });
-
-            ['dragleave', 'drop'].forEach(eventName => {
-                uploadArea.addEventListener(eventName, unhighlight, false);
-            });
-
-            uploadArea.addEventListener('drop', handleDrop, false);
-
-            function preventDefaults(e) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
-
-            function highlight() {
-                uploadArea.classList.add('drag-over');
-            }
-
-            function unhighlight() {
-                uploadArea.classList.remove('drag-over');
-            }
-
-            function handleDrop(e) {
-                const files = e.dataTransfer.files;
-                document.getElementById('file-input').files = files;
-                handleFileSelect({ target: { files } });
-            }
+            document.querySelectorAll('.upload-tab-content').forEach(content => content.classList.add('hidden'));
+            document.getElementById(`${tabName}-upload`).classList.remove('hidden');
         }
 
-        function handleFileSelect(event) {
+        // File Upload Handling
+        async function handleFileSelect(event) {
             const files = Array.from(event.target.files);
             if (files.length === 0) return;
 
-            const selectedFiles = document.getElementById('selected-files');
-            selectedFiles.innerHTML = files.map(file => 
-                `<div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: #f9fafb; border-radius: 4px; margin-bottom: 0.25rem;">
-                    <span style="font-size: 0.75rem;">${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)</span>
-                    <span style="font-size: 0.625rem; color: #6b7280;">${file.type || 'Unknown type'}</span>
-                </div>`
-            ).join('');
-
-            document.getElementById('file-list').classList.remove('hidden');
+            for (const file of files) {
+                await uploadSingleFile(file);
+            }
         }
 
-        function clearFiles() {
-            document.getElementById('file-input').value = '';
-            document.getElementById('file-list').classList.add('hidden');
-            document.getElementById('upload-progress').classList.add('hidden');
-            document.getElementById('upload-results').innerHTML = '';
-        }
+        async function handleBootstrapFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
 
-        // Enhanced upload with real-time progress
-        async function uploadFiles() {
-            const fileInput = document.getElementById('file-input');
-            const files = fileInput.files;
-            
-            if (files.length === 0) {
-                showResult('Please select files to upload', 'error');
-                return;
-            }
-
-            if (!authToken) {
-                showResult('Please login first', 'error');
-                return;
-            }
-
-            document.getElementById('upload-progress').classList.remove('hidden');
-            document.getElementById('upload-results').innerHTML = '';
-
-            for (let i = 0; i < files.length; i++) {
-                const file = files[i];
-                updateProgress((i / files.length) * 100, `Processing ${file.name}...`);
-                
-                try {
-                    const result = await uploadSingleFile(file);
-                    displayUploadResult(result, file.name);
-                } catch (error) {
-                    displayUploadResult({
-                        success: false,
-                        error: error.message,
-                        filename: file.name
-                    }, file.name);
-                }
-            }
-
-            updateProgress(100, 'All files processed!');
-            setTimeout(() => {
-                document.getElementById('upload-progress').classList.add('hidden');
-                loadTransactions();
-                loadStagedTransactions();
-            }, 2000);
+            await uploadBootstrapFile(file);
         }
 
         async function uploadSingleFile(file) {
-            return new Promise(async (resolve, reject) => {
-                try {
-                    // Initialize WebSocket for progress tracking
-                    const sessionId = Date.now() + Math.random();
-                    initializeWebSocket(sessionId);
+            try {
+                showUploadProgress();
+                
+                const sessionId = Date.now() + Math.random();
+                initializeWebSocket(sessionId);
 
-                    const formData = new FormData();
-                    formData.append('file', file);
+                const formData = new FormData();
+                formData.append('file', file);
 
-                    const response = await fetch(`${API_BASE}/upload/transactions/`, {
-                        method: 'POST',
-                        headers: { 'Authorization': `Bearer ${authToken}` },
-                        body: formData
-                    });
+                const response = await fetch(`${API_BASE}/upload/transactions/`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}` },
+                    body: formData
+                });
 
-                    const result = await response.json();
-                    
-                    if (response.ok) {
-                        resolve(result);
-                    } else {
-                        reject(new Error(result.detail || 'Upload failed'));
-                    }
-                } catch (error) {
-                    reject(error);
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showToast(`✅ ${file.name} processed successfully! ${result.staged_count} transactions staged.`, 'success');
+                    await loadStagedTransactions();
+                } else {
+                    showToast(`❌ ${result.detail || 'Upload failed'}`, 'error');
                 }
-            });
+            } catch (error) {
+                showToast(`Error uploading ${file.name}: ${error.message}`, 'error');
+            } finally {
+                hideUploadProgress();
+            }
         }
 
+        async function uploadBootstrapFile(file) {
+            try {
+                showUploadProgress();
+                
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const response = await fetch(`${API_BASE}/categorization/bootstrap/`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}` },
+                    body: formData
+                });
+
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showToast(`🎯 Bootstrap completed! ${result.rules_created} categorization rules created.`, 'success');
+                    await loadCategories();
+                } else {
+                    showToast(`❌ ${result.detail || 'Bootstrap failed'}`, 'error');
+                }
+            } catch (error) {
+                showToast(`Error processing bootstrap file: ${error.message}`, 'error');
+            } finally {
+                hideUploadProgress();
+            }
+        }
+
+        // Enhanced Progress System
+        function showUploadProgress() {
+            document.getElementById('upload-progress').classList.remove('hidden');
+            setProgressStage('parsing', 0);
+        }
+
+        function hideUploadProgress() {
+            setTimeout(() => {
+                document.getElementById('upload-progress').classList.add('hidden');
+                resetProgressStages();
+            }, 2000);
+        }
+
+        function setProgressStage(stage, percentage) {
+            // Reset all stages
+            document.querySelectorAll('.progress-stage').forEach(s => {
+                s.classList.remove('active', 'completed');
+            });
+
+            // Set current stage
+            const stages = ['parsing', 'analyzing', 'categorizing', 'finalizing'];
+            const currentIndex = stages.indexOf(stage);
+            
+            stages.forEach((s, index) => {
+                const element = document.getElementById(`stage-${s}`);
+                if (index < currentIndex) {
+                    element.classList.add('completed');
+                } else if (index === currentIndex) {
+                    element.classList.add('active');
+                }
+            });
+
+            // Update progress bar
+            document.getElementById('progress-fill').style.width = `${percentage}%`;
+            document.getElementById('progress-percent').textContent = `${Math.round(percentage)}%`;
+            
+            // Update message
+            const messages = {
+                parsing: 'Reading and parsing file...',
+                analyzing: 'Analyzing transaction patterns...',
+                categorizing: 'Applying smart categorization...',
+                finalizing: 'Finalizing and staging transactions...'
+            };
+            document.getElementById('progress-message').textContent = messages[stage] || 'Processing...';
+        }
+
+        function resetProgressStages() {
+            document.querySelectorAll('.progress-stage').forEach(s => {
+                s.classList.remove('active', 'completed');
+            });
+            document.getElementById('progress-fill').style.width = '0%';
+            document.getElementById('progress-percent').textContent = '0%';
+            document.getElementById('progress-message').textContent = 'Initializing...';
+        }
+
+        // WebSocket Progress Tracking
         function initializeWebSocket(sessionId) {
             const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const wsHost = API_BASE.replace(/^https?:/, '').replace(/^\//, '');
@@ -1020,186 +1395,34 @@
                 
                 uploadWebSocket.onmessage = function(event) {
                     const data = JSON.parse(event.data);
-                    
-                    if (data.stage === 'completed' || data.stage === 'failed') {
-                        document.getElementById('progress-live').classList.add('hidden');
-                    } else {
-                        document.getElementById('progress-live').classList.remove('hidden');
-                        document.getElementById('live-progress-percent').textContent = `${data.progress.toFixed(1)}%`;
-                        document.getElementById('live-progress-fill').style.width = `${data.progress}%`;
-                        document.getElementById('live-progress-message').textContent = data.message || data.stage;
-                    }
+                    setProgressStage(data.stage, data.progress);
                 };
 
                 uploadWebSocket.onerror = function(error) {
-                    console.log('WebSocket error:', error);
+                    console.log('WebSocket error, using fallback progress');
                 };
             } catch (error) {
                 console.log('WebSocket not available, using fallback progress');
             }
         }
 
-        function updateProgress(percent, message) {
-            document.getElementById('progress-fill').style.width = `${percent}%`;
-            document.getElementById('progress-text').textContent = message;
-        }
-
-        function displayUploadResult(result, filename) {
-            const resultsDiv = document.getElementById('upload-results');
-            const isSuccess = result.success;
-            
-            const resultHTML = `
-                <div class="${isSuccess ? 'result-message' : 'error-message'}" style="margin-top: 0.5rem;">
-                    <strong>${filename}</strong><br>
-                    ${isSuccess 
-                        ? `✅ Processed ${result.total_rows} rows • ${result.staged_count} staged • ${result.duplicate_count} duplicates • ${result.error_count} errors`
-                        : `❌ ${result.error || 'Upload failed'}`
-                    }
-                    ${result.errors && result.errors.length > 0 ? `<br><small>Errors: ${result.errors.slice(0, 3).join(', ')}</small>` : ''}
-                </div>
-            `;
-            
-            resultsDiv.innerHTML += resultHTML;
-        }
-
-        // Categories
-        async function loadCategories() {
-            if (!authToken) return;
-
-            try {
-                const response = await fetch(`${API_BASE}/categories/`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-
-                if (response.ok) {
-                    categories = await response.json();
-                    updateCategorySelects();
-                }
-            } catch (error) {
-                console.error('Error loading categories:', error);
-            }
-        }
-
-        function updateCategorySelects() {
-            const selects = ['edit-category', 'category-filter'];
-            
-            selects.forEach(selectId => {
-                const select = document.getElementById(selectId);
-                if (select) {
-                    const currentValue = select.value;
-                    select.innerHTML = selectId === 'category-filter' 
-                        ? '<option value="">All Categories</option>' 
-                        : '<option value="">Select category...</option>';
-                    
-                    categories.forEach(category => {
-                        const option = document.createElement('option');
-                        option.value = category.name;
-                        option.textContent = category.name;
-                        select.appendChild(option);
-                    });
-                    
-                    select.value = currentValue;
-                }
-            });
-        }
-
-        // Tab switching
+        // Tab Management
         function switchTab(tabName) {
-            // Update tab buttons
             document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-            document.querySelector(`.tab[onclick="switchTab('${tabName}')"]`).classList.add('active');
+            document.querySelector(`[onclick="switchTab('${tabName}')"]`).classList.add('active');
             
-            // Update tab content
-            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-            document.getElementById(`${tabName}-tab`).classList.add('active');
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
+            document.getElementById(`${tabName}-tab`).classList.remove('hidden');
             
             // Load data based on tab
-            if (tabName === 'confirmed') {
-                loadTransactions();
-            } else if (tabName === 'staged') {
-                loadStagedTransactions();
-            } else if (tabName === 'stats') {
-                loadTransactionStats();
-            }
+            if (tabName === 'staged') loadStagedTransactions();
+            else if (tabName === 'transactions') loadTransactions();
+            else if (tabName === 'duplicates') loadDuplicates();
+            else if (tabName === 'categories') loadCategories();
+            else if (tabName === 'stats') loadStats();
         }
 
-        // Transactions loading and display
-        async function loadTransactions() {
-            if (!authToken) return;
-            
-            document.getElementById('refresh-icon').textContent = '⏳';
-            
-            try {
-                const response = await fetch(`${API_BASE}/transactions/?skip=${currentPage * pageSize}&limit=${pageSize}`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-
-                if (response.ok) {
-                    const data = await response.json();
-                    transactions = data.items;
-                    totalTransactions = data.total;
-                    displayTransactions(transactions);
-                    updatePagination();
-                    
-                    // Load stats
-                    const statsResponse = await fetch(`${API_BASE}/transactions/stats`, {
-                        headers: { 'Authorization': `Bearer ${authToken}` }
-                    });
-                    
-                    if (statsResponse.ok) {
-                        const stats = await statsResponse.json();
-                        updateStatsDisplay(stats);
-                    }
-                } else {
-                    showResult('Failed to load transactions', 'error');
-                }
-            } catch (error) {
-                showResult(`Error loading transactions: ${error.message}`, 'error');
-            } finally {
-                document.getElementById('refresh-icon').textContent = '🔄';
-            }
-        }
-
-        function displayTransactions(transactionList) {
-            const container = document.getElementById('transactions-list');
-            
-            if (transactionList.length === 0) {
-                container.innerHTML = '<div style="padding: 1.5rem; text-align: center; color: #6b7280; font-size: 0.75rem;">No transactions found</div>';
-                return;
-            }
-
-            container.innerHTML = transactionList.map(tx => {
-                const amount = parseFloat(tx.amount);
-                const amountClass = amount >= 0 ? 'amount-positive' : 'amount-negative';
-                const amountSymbol = amount >= 0 ? '+' : '';
-                
-                return `
-                    <div class="transaction-item" onclick="editTransaction(${tx.id})">
-                        <div class="transaction-details">
-                            <div class="transaction-beneficiary">${tx.beneficiary}</div>
-                            <div class="transaction-date">${new Date(tx.transaction_date).toLocaleDateString()}</div>
-                            ${tx.category ? `<div class="transaction-category">${tx.category}</div>` : ''}
-                            ${tx.is_split ? '<span style="color: #8b5cf6; font-size: 0.625rem;">✂️ Split</span>' : ''}
-                        </div>
-                        <div class="transaction-amount ${amountClass}">
-                            ${amountSymbol}€${Math.abs(amount).toFixed(2)}
-                        </div>
-                        <div>
-                            <button class="btn btn-xs" onclick="event.stopPropagation(); editTransaction(${tx.id})">Edit</button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function updateStatsDisplay(stats) {
-            document.getElementById('total-transactions').textContent = stats.total_transactions;
-            document.getElementById('total-income').textContent = `€${stats.total_income}`;
-            document.getElementById('total-expenses').textContent = `€${stats.total_expenses}`;
-            document.getElementById('net-balance').textContent = `€${stats.net_balance}`;
-        }
-
-        // Staged transactions
+        // Data Loading Functions
         async function loadStagedTransactions() {
             if (!authToken) return;
 
@@ -1210,115 +1433,228 @@
 
                 if (response.ok) {
                     stagedTransactions = await response.json();
-                    displayStagedTransactions(stagedTransactions);
-                    document.getElementById('staged-count').textContent = `${stagedTransactions.length} staged`;
-                } else {
-                    showResult('Failed to load staged transactions', 'error');
+                    renderStagedTransactions();
                 }
             } catch (error) {
-                showResult(`Error loading staged transactions: ${error.message}`, 'error');
+                console.error('Error loading staged transactions:', error);
             }
         }
 
-        function displayStagedTransactions(stagedList) {
-            const container = document.getElementById('staged-list');
-            
-            if (stagedList.length === 0) {
-                container.innerHTML = '<div style="padding: 1.5rem; text-align: center; color: #6b7280; font-size: 0.75rem;">No staged transactions</div>';
-                return;
-            }
-
-            container.innerHTML = stagedList.map(tx => {
-                const amount = parseFloat(tx.amount);
-                const amountClass = amount >= 0 ? 'amount-positive' : 'amount-negative';
-                const amountSymbol = amount >= 0 ? '+' : '';
-                
-                return `
-                    <div class="transaction-item">
-                        <input type="checkbox" class="staged-checkbox" value="${tx.id}" onchange="updateBulkActions()">
-                        <div class="transaction-details">
-                            <div class="transaction-beneficiary">${tx.beneficiary}</div>
-                            <div class="transaction-date">${new Date(tx.transaction_date).toLocaleDateString()}</div>
-                            ${tx.suggested_category ? `<div class="transaction-category">💡 ${tx.suggested_category}</div>` : ''}
-                        </div>
-                        <div class="transaction-amount ${amountClass}">
-                            ${amountSymbol}€${Math.abs(amount).toFixed(2)}
-                        </div>
-                        <div style="display: flex; gap: 0.25rem;">
-                            <button class="btn btn-xs btn-success" onclick="confirmStagedTransaction(${tx.id})">✅</button>
-                            <button class="btn btn-xs btn-warning" onclick="editStagedTransaction(${tx.id})">✏️</button>
-                            <button class="btn btn-xs btn-danger" onclick="rejectStagedTransaction(${tx.id})">❌</button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function updateBulkActions() {
-            const checkedBoxes = document.querySelectorAll('.staged-checkbox:checked');
-            const bulkActions = document.getElementById('bulk-actions');
-            
-            if (checkedBoxes.length > 0) {
-                bulkActions.classList.remove('hidden');
-            } else {
-                bulkActions.classList.add('hidden');
-            }
-        }
-
-        async function confirmStagedTransaction(stagedId) {
+        async function loadTransactions() {
             if (!authToken) return;
 
             try {
-                const response = await fetch(`${API_BASE}/staged-transactions/${stagedId}/confirm`, {
-                    method: 'POST',
+                const response = await fetch(`${API_BASE}/transactions/`, {
                     headers: { 'Authorization': `Bearer ${authToken}` }
                 });
 
                 if (response.ok) {
-                    showResult('✅ Transaction confirmed', 'result');
-                    loadStagedTransactions();
-                    loadTransactions();
-                } else {
-                    showResult('Failed to confirm transaction', 'error');
+                    const data = await response.json();
+                    renderTransactions(data.items || []);
                 }
             } catch (error) {
-                showResult(`Error confirming transaction: ${error.message}`, 'error');
+                console.error('Error loading transactions:', error);
             }
         }
 
-        async function rejectStagedTransaction(stagedId) {
+        async function loadDuplicates() {
             if (!authToken) return;
 
             try {
-                const response = await fetch(`${API_BASE}/staged-transactions/bulk-action`, {
-                    method: 'POST',
-                    headers: { 
-                        'Authorization': `Bearer ${authToken}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        action: 'reject',
-                        transaction_ids: [stagedId]
-                    })
+                const response = await fetch(`${API_BASE}/duplicates/scan`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
                 });
 
                 if (response.ok) {
-                    showResult('❌ Transaction rejected', 'result');
-                    loadStagedTransactions();
-                } else {
-                    showResult('Failed to reject transaction', 'error');
+                    duplicatePairs = await response.json();
+                    renderDuplicates();
                 }
             } catch (error) {
-                showResult(`Error rejecting transaction: ${error.message}`, 'error');
+                console.error('Error loading duplicates:', error);
             }
         }
 
-        // Bulk operations for staged transactions
+        async function loadCategories() {
+            if (!authToken) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/categories/`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (response.ok) {
+                    categories = await response.json();
+                    renderCategories();
+                    updateCategorySelects();
+                }
+            } catch (error) {
+                console.error('Error loading categories:', error);
+            }
+        }
+
+        async function loadStats() {
+            if (!authToken) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/analytics/summary`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (response.ok) {
+                    const stats = await response.json();
+                    renderStats(stats);
+                }
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+
+        // Rendering Functions
+        function renderStagedTransactions() {
+            const container = document.getElementById('staged-list');
+            
+            if (stagedTransactions.length === 0) {
+                container.innerHTML = '<div class="text-center p-md"><span style="color: var(--color-text-secondary);">No transactions awaiting review</span></div>';
+                return;
+            }
+
+            const html = stagedTransactions.map(transaction => `
+                <div class="transaction-item">
+                    <div>
+                        <input type="checkbox" class="staged-checkbox" value="${transaction.id}" style="margin-right: var(--space-sm);">
+                    </div>
+                    <div class="transaction-info">
+                        <h4>${transaction.beneficiary}</h4>
+                        <div class="transaction-meta">
+                            ${transaction.transaction_date} • 
+                            ${transaction.category || 'Uncategorized'}
+                            ${transaction.suggested_category ? `<span class="category-suggestion" onclick="applySuggestedCategory(${transaction.id}, '${transaction.suggested_category}')">${transaction.suggested_category}</span>` : ''}
+                            ${transaction.confidence_score ? `<span class="confidence-score">${Math.round(transaction.confidence_score * 100)}% confidence</span>` : ''}
+                        </div>
+                    </div>
+                    <div class="transaction-amount ${transaction.amount >= 0 ? 'amount-positive' : 'amount-negative'}">
+                        €${Math.abs(transaction.amount).toFixed(2)}
+                    </div>
+                    <div style="display: flex; gap: var(--space-xs);">
+                        <button class="btn btn-xs btn-success" onclick="confirmTransaction(${transaction.id})">✅</button>
+                        <button class="btn btn-xs btn-error" onclick="rejectTransaction(${transaction.id})">❌</button>
+                        <button class="btn btn-xs" onclick="editStagedTransaction(${transaction.id})">✏️</button>
+                    </div>
+                </div>
+            `).join('');
+
+            container.innerHTML = html;
+        }
+
+        function renderTransactions(transactions) {
+            const container = document.getElementById('transactions-list');
+            
+            if (transactions.length === 0) {
+                container.innerHTML = '<div class="text-center p-md"><span style="color: var(--color-text-secondary);">No transactions found</span></div>';
+                return;
+            }
+
+            const html = transactions.map(transaction => `
+                <div class="transaction-item">
+                    <div class="transaction-info">
+                        <h4>${transaction.beneficiary}</h4>
+                        <div class="transaction-meta">
+                            ${transaction.transaction_date} • ${transaction.category || 'Uncategorized'}
+                        </div>
+                    </div>
+                    <div class="transaction-amount ${transaction.amount >= 0 ? 'amount-positive' : 'amount-negative'}">
+                        €${Math.abs(transaction.amount).toFixed(2)}
+                    </div>
+                    <div>
+                        <button class="btn btn-xs" onclick="editTransaction(${transaction.id})">✏️ Edit</button>
+                    </div>
+                </div>
+            `).join('');
+
+            container.innerHTML = html;
+        }
+
+        function renderDuplicates() {
+            const container = document.getElementById('duplicates-list');
+            
+            if (duplicatePairs.length === 0) {
+                container.innerHTML = '<div class="text-center p-md"><span style="color: var(--color-text-secondary);">No duplicates detected</span></div>';
+                return;
+            }
+
+            const html = duplicatePairs.map(pair => `
+                <div class="transaction-item" style="border-left: 4px solid var(--color-error);">
+                    <div class="transaction-info">
+                        <h4>${pair.transaction1.beneficiary} <span class="duplicate-indicator">DUPLICATE</span></h4>
+                        <div class="transaction-meta">
+                            ${pair.transaction1.transaction_date} & ${pair.transaction2.transaction_date} • 
+                            ${pair.similarity_score}% match
+                        </div>
+                    </div>
+                    <div class="transaction-amount amount-negative">
+                        €${Math.abs(pair.transaction1.amount).toFixed(2)}
+                    </div>
+                    <div>
+                        <button class="btn btn-xs" onclick="showDuplicateComparison(${pair.transaction1.id}, ${pair.transaction2.id})">🔍 Compare</button>
+                    </div>
+                </div>
+            `).join('');
+
+            container.innerHTML = html;
+        }
+
+        function renderCategories() {
+            const container = document.getElementById('categories-list');
+            
+            if (categories.length === 0) {
+                container.innerHTML = '<div class="text-center p-md"><span style="color: var(--color-text-secondary);">No categories found</span></div>';
+                return;
+            }
+
+            const html = categories.map(category => `
+                <div class="transaction-item">
+                    <div class="transaction-info">
+                        <h4>${category.icon || '🏷️'} ${category.name}</h4>
+                        <div class="transaction-meta">
+                            ${category.transaction_count || 0} transactions
+                        </div>
+                    </div>
+                    <div style="width: 24px; height: 24px; background: ${category.color || '#8b5cf6'}; border-radius: 50%;"></div>
+                    <div style="display: flex; gap: var(--space-xs);">
+                        <button class="btn btn-xs" onclick="editCategory(${category.id})">✏️</button>
+                        <button class="btn btn-xs btn-error" onclick="deleteCategory(${category.id})">🗑️</button>
+                    </div>
+                </div>
+            `).join('');
+
+            container.innerHTML = html;
+        }
+
+        function renderStats(stats) {
+            document.getElementById('total-transactions').textContent = stats.total_transactions || 0;
+            document.getElementById('total-income').textContent = `€${(stats.total_income || 0).toFixed(2)}`;
+            document.getElementById('total-expenses').textContent = `€${Math.abs(stats.total_expenses || 0).toFixed(2)}`;
+            document.getElementById('net-flow').textContent = `€${((stats.total_income || 0) + (stats.total_expenses || 0)).toFixed(2)}`;
+        }
+
+        // Modal Management
+        function openModal(modalId) {
+            document.getElementById(modalId).classList.add('active');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        // Bulk Actions
         async function bulkConfirm() {
             const checkedBoxes = document.querySelectorAll('.staged-checkbox:checked');
             const transactionIds = Array.from(checkedBoxes).map(cb => parseInt(cb.value));
 
-            if (transactionIds.length === 0) return;
+            if (transactionIds.length === 0) {
+                showToast('Please select transactions to confirm', 'warning');
+                return;
+            }
 
             try {
                 const response = await fetch(`${API_BASE}/staged-transactions/bulk-action`, {
@@ -1335,14 +1671,14 @@
 
                 if (response.ok) {
                     const result = await response.json();
-                    showResult(`✅ ${result.message}`, 'result');
-                    loadStagedTransactions();
-                    loadTransactions();
+                    showToast(`✅ ${result.processed_count} transactions confirmed`, 'success');
+                    await loadStagedTransactions();
+                    await loadTransactions();
                 } else {
-                    showResult('Failed to confirm transactions', 'error');
+                    showToast('Failed to confirm transactions', 'error');
                 }
             } catch (error) {
-                showResult(`Error confirming transactions: ${error.message}`, 'error');
+                showToast(`Error: ${error.message}`, 'error');
             }
         }
 
@@ -1350,7 +1686,10 @@
             const checkedBoxes = document.querySelectorAll('.staged-checkbox:checked');
             const transactionIds = Array.from(checkedBoxes).map(cb => parseInt(cb.value));
 
-            if (transactionIds.length === 0) return;
+            if (transactionIds.length === 0) {
+                showToast('Please select transactions to reject', 'warning');
+                return;
+            }
 
             try {
                 const response = await fetch(`${API_BASE}/staged-transactions/bulk-action`, {
@@ -1367,13 +1706,13 @@
 
                 if (response.ok) {
                     const result = await response.json();
-                    showResult(`❌ ${result.message}`, 'result');
-                    loadStagedTransactions();
+                    showToast(`❌ ${result.processed_count} transactions rejected`, 'success');
+                    await loadStagedTransactions();
                 } else {
-                    showResult('Failed to reject transactions', 'error');
+                    showToast('Failed to reject transactions', 'error');
                 }
             } catch (error) {
-                showResult(`Error rejecting transactions: ${error.message}`, 'error');
+                showToast(`Error: ${error.message}`, 'error');
             }
         }
 
@@ -1384,7 +1723,10 @@
             const checkedBoxes = document.querySelectorAll('.staged-checkbox:checked');
             const transactionIds = Array.from(checkedBoxes).map(cb => parseInt(cb.value));
 
-            if (transactionIds.length === 0) return;
+            if (transactionIds.length === 0) {
+                showToast('Please select transactions to categorize', 'warning');
+                return;
+            }
 
             try {
                 const response = await fetch(`${API_BASE}/staged-transactions/bulk-action`, {
@@ -1402,17 +1744,104 @@
 
                 if (response.ok) {
                     const result = await response.json();
-                    showResult(`🏷️ ${result.message}`, 'result');
-                    loadStagedTransactions();
+                    showToast(`🏷️ ${result.processed_count} transactions categorized`, 'success');
+                    await loadStagedTransactions();
                 } else {
-                    showResult('Failed to categorize transactions', 'error');
+                    showToast('Failed to categorize transactions', 'error');
                 }
             } catch (error) {
-                showResult(`Error categorizing transactions: ${error.message}`, 'error');
+                showToast(`Error: ${error.message}`, 'error');
             }
         }
 
-        // Transaction editing with enhanced modal
+        // Individual Transaction Actions
+        async function confirmTransaction(transactionId) {
+            try {
+                const response = await fetch(`${API_BASE}/staged-transactions/bulk-action`, {
+                    method: 'POST',
+                    headers: { 
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        action: 'confirm',
+                        transaction_ids: [transactionId]
+                    })
+                });
+
+                if (response.ok) {
+                    showToast('Transaction confirmed ✅', 'success');
+                    await loadStagedTransactions();
+                    await loadTransactions();
+                } else {
+                    showToast('Failed to confirm transaction', 'error');
+                }
+            } catch (error) {
+                showToast(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function rejectTransaction(transactionId) {
+            try {
+                const response = await fetch(`${API_BASE}/staged-transactions/bulk-action`, {
+                    method: 'POST',
+                    headers: { 
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        action: 'reject',
+                        transaction_ids: [transactionId]
+                    })
+                });
+
+                if (response.ok) {
+                    showToast('Transaction rejected ❌', 'success');
+                    await loadStagedTransactions();
+                } else {
+                    showToast('Failed to reject transaction', 'error');
+                }
+            } catch (error) {
+                showToast(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function applySuggestedCategory(transactionId, category) {
+            try {
+                const response = await fetch(`${API_BASE}/staged-transactions/bulk-action`, {
+                    method: 'POST',
+                    headers: { 
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        action: 'update_category',
+                        transaction_ids: [transactionId],
+                        category: category
+                    })
+                });
+
+                if (response.ok) {
+                    showToast(`Category applied: ${category} 🏷️`, 'success');
+                    await loadStagedTransactions();
+                } else {
+                    showToast('Failed to apply category', 'error');
+                }
+            } catch (error) {
+                showToast(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Transaction Editing
+        async function editStagedTransaction(transactionId) {
+            const transaction = stagedTransactions.find(t => t.id === transactionId);
+            if (transaction) {
+                currentEditTransaction = { ...transaction, isStaged: true };
+                populateEditForm(currentEditTransaction);
+                openModal('edit-transaction-modal');
+            }
+        }
+
         async function editTransaction(transactionId) {
             try {
                 const response = await fetch(`${API_BASE}/transactions/${transactionId}`, {
@@ -1422,26 +1851,12 @@
                 if (response.ok) {
                     currentEditTransaction = await response.json();
                     populateEditForm(currentEditTransaction);
-                    document.getElementById('edit-transaction-modal').classList.add('active');
+                    openModal('edit-transaction-modal');
                 } else {
-                    showResult('Failed to load transaction', 'error');
+                    showToast('Failed to load transaction', 'error');
                 }
             } catch (error) {
-                showResult(`Error loading transaction: ${error.message}`, 'error');
-            }
-        }
-
-        async function editStagedTransaction(stagedId) {
-            // Similar to editTransaction but for staged transactions
-            try {
-                const staged = stagedTransactions.find(t => t.id === stagedId);
-                if (staged) {
-                    currentEditTransaction = { ...staged, isStaged: true };
-                    populateEditForm(currentEditTransaction);
-                    document.getElementById('edit-transaction-modal').classList.add('active');
-                }
-            } catch (error) {
-                showResult(`Error: ${error.message}`, 'error');
+                showToast(`Error: ${error.message}`, 'error');
             }
         }
 
@@ -1450,10 +1865,31 @@
             document.getElementById('edit-amount').value = transaction.amount;
             document.getElementById('edit-date').value = transaction.transaction_date;
             document.getElementById('edit-category').value = transaction.category || '';
-            document.getElementById('edit-labels').value = Array.isArray(transaction.labels) ? 
-                transaction.labels.join(', ') : '';
+            document.getElementById('edit-labels').value = Array.isArray(transaction.labels) ? transaction.labels.join(', ') : '';
             document.getElementById('edit-notes').value = transaction.notes || '';
             document.getElementById('edit-private').checked = transaction.is_private;
+
+            // Load category suggestions
+            loadCategorySuggestions(transaction.beneficiary);
+        }
+
+        async function loadCategorySuggestions(beneficiary) {
+            try {
+                const response = await fetch(`${API_BASE}/categorization/suggest?beneficiary=${encodeURIComponent(beneficiary)}`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                if (response.ok) {
+                    const suggestions = await response.json();
+                    const container = document.getElementById('category-suggestions');
+                    
+                    container.innerHTML = suggestions.map(s => 
+                        `<span class="category-suggestion" onclick="document.getElementById('edit-category').value='${s.category}'">${s.category} (${Math.round(s.confidence * 100)}%)</span>`
+                    ).join(' ');
+                }
+            } catch (error) {
+                console.error('Error loading category suggestions:', error);
+            }
         }
 
         async function saveTransaction() {
@@ -1485,399 +1921,127 @@
                 });
 
                 if (response.ok) {
-                    showResult('Transaction updated successfully', 'result');
+                    showToast('Transaction updated successfully 💾', 'success');
                     closeModal('edit-transaction-modal');
                     
                     if (isStaged) {
-                        loadStagedTransactions();
+                        await loadStagedTransactions();
                     } else {
-                        loadTransactions();
+                        await loadTransactions();
                     }
                 } else {
                     const error = await response.json();
-                    showResult(`Failed to update transaction: ${error.detail}`, 'error');
+                    showToast(`Failed to update: ${error.detail}`, 'error');
                 }
             } catch (error) {
-                showResult(`Error updating transaction: ${error.message}`, 'error');
+                showToast(`Error: ${error.message}`, 'error');
             }
         }
 
-        // Enhanced split functionality
-        function showSplitModal() {
-            if (!currentEditTransaction) return;
+        // Category Management
+        function updateCategorySelects() {
+            const selects = ['edit-category'];
             
-            const originalAmount = parseFloat(currentEditTransaction.amount);
-            document.getElementById('split-original-amount').textContent = Math.abs(originalAmount).toFixed(2);
-            document.getElementById('split-transaction-modal').classList.add('active');
-            
-            // Reset split items
-            const splitItems = document.getElementById('split-items');
-            splitItems.innerHTML = '';
-            
-            // Add first split item
-            addSplitItem();
-            updateSplitRemaining();
-        }
-
-        function addSplitItem() {
-            const splitItems = document.getElementById('split-items');
-            const itemCount = splitItems.children.length;
-            
-            const splitItem = document.createElement('div');
-            splitItem.className = 'split-container';
-            splitItem.innerHTML = `
-                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.375rem;">
-                    <input type="number" step="0.01" placeholder="Amount" class="split-amount" oninput="updateSplitRemaining()">
-                    <input type="text" placeholder="Description" class="split-description">
-                    <select class="split-category">
-                        <option value="">Category...</option>
-                        ${categories.map(cat => `<option value="${cat.name}">${cat.name}</option>`).join('')}
-                    </select>
-                </div>
-                <button class="btn btn-danger btn-xs" onclick="removeSplitItem(this)">×</button>
-            `;
-            
-            splitItems.appendChild(splitItem);
-            updateSplitRemaining();
-        }
-
-        function removeSplitItem(button) {
-            button.parentElement.remove();
-            updateSplitRemaining();
-        }
-
-        function updateSplitRemaining() {
-            const originalAmount = Math.abs(parseFloat(currentEditTransaction.amount));
-            const splitAmounts = Array.from(document.querySelectorAll('.split-amount'))
-                .map(input => parseFloat(input.value) || 0);
-            
-            const totalSplit = splitAmounts.reduce((sum, amount) => sum + amount, 0);
-            const remaining = originalAmount - totalSplit;
-            
-            document.getElementById('split-remaining').textContent = remaining.toFixed(2);
-            document.getElementById('split-remaining').style.color = remaining < 0 ? '#ef4444' : '#6b7280';
-        }
-
-        async function applySplit() {
-            const originalAmount = Math.abs(parseFloat(currentEditTransaction.amount));
-            const splitItems = Array.from(document.getElementById('split-items').children);
-            
-            const splits = splitItems.map(item => {
-                const amount = parseFloat(item.querySelector('.split-amount').value) || 0;
-                const description = item.querySelector('.split-description').value || `${currentEditTransaction.beneficiary} (Split)`;
-                const category = item.querySelector('.split-category').value || currentEditTransaction.category;
-                
-                // Preserve original sign
-                const signedAmount = currentEditTransaction.amount < 0 ? -amount : amount;
-                
-                return {
-                    amount: signedAmount,
-                    beneficiary: description,
-                    category: category
-                };
+            selects.forEach(selectId => {
+                const select = document.getElementById(selectId);
+                if (select) {
+                    const currentValue = select.value;
+                    select.innerHTML = '<option value="">Select category...</option>';
+                    
+                    categories.forEach(category => {
+                        const option = document.createElement('option');
+                        option.value = category.name;
+                        option.textContent = `${category.icon || '🏷️'} ${category.name}`;
+                        select.appendChild(option);
+                    });
+                    
+                    select.value = currentValue;
+                }
             });
+        }
 
-            // Validate split amounts
-            const totalSplit = splits.reduce((sum, split) => sum + Math.abs(split.amount), 0);
-            if (Math.abs(totalSplit - originalAmount) > 0.01) {
-                showResult('Split amounts must equal the original amount', 'error');
+        async function createCategory() {
+            const name = document.getElementById('new-category-name').value;
+            const color = document.getElementById('new-category-color').value;
+            const icon = document.getElementById('new-category-icon').value;
+
+            if (!name) {
+                showToast('Please enter a category name', 'warning');
                 return;
             }
 
             try {
-                const response = await fetch(`${API_BASE}/transactions/${currentEditTransaction.id}/split`, {
+                const response = await fetch(`${API_BASE}/categories/`, {
                     method: 'POST',
                     headers: { 
                         'Authorization': `Bearer ${authToken}`,
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({
-                        splits: splits,
-                        reason: 'User split transaction'
-                    })
+                    body: JSON.stringify({ name, color, icon })
                 });
 
                 if (response.ok) {
-                    const result = await response.json();
-                    showResult(`Transaction split successfully into ${splits.length} parts`, 'result');
-                    closeModal('split-transaction-modal');
-                    closeModal('edit-transaction-modal');
-                    loadTransactions();
+                    showToast(`Category "${name}" created 🏷️`, 'success');
+                    closeModal('category-modal');
+                    await loadCategories();
                 } else {
                     const error = await response.json();
-                    showResult(`Failed to split transaction: ${error.detail}`, 'error');
+                    showToast(`Failed to create category: ${error.detail}`, 'error');
                 }
             } catch (error) {
-                showResult(`Error splitting transaction: ${error.message}`, 'error');
+                showToast(`Error: ${error.message}`, 'error');
             }
         }
 
-        // Clear all transactions
-        async function clearAllTransactions() {
-            if (!authToken) return;
-
-            const confirmDelete = confirm('⚠️ Are you sure you want to delete ALL transactions? This action cannot be undone!');
-            if (!confirmDelete) return;
-
+        // Duplicate Management
+        async function scanForDuplicates() {
             try {
-                const response = await fetch(`${API_BASE}/transactions/`, {
-                    method: 'DELETE',
+                const response = await fetch(`${API_BASE}/duplicates/scan`, {
+                    method: 'POST',
                     headers: { 'Authorization': `Bearer ${authToken}` }
                 });
 
                 if (response.ok) {
                     const result = await response.json();
-                    showResult(`✅ ${result.message}`, 'result');
-                    loadTransactions();
+                    showToast(`Scan complete: ${result.duplicate_pairs} potential duplicates found 🔍`, 'success');
+                    await loadDuplicates();
                 } else {
-                    showResult('❌ Failed to clear transactions', 'error');
+                    showToast('Duplicate scan failed', 'error');
                 }
             } catch (error) {
-                showResult(`❌ Error clearing transactions: ${error.message}`, 'error');
+                showToast(`Error: ${error.message}`, 'error');
             }
         }
 
-        // Pagination functions
-        function updatePagination() {
-            const pagination = document.getElementById('pagination');
-            const totalPages = Math.ceil(totalTransactions / pageSize);
+        function showDuplicateComparison(id1, id2) {
+            // Implementation for duplicate comparison modal
+            openModal('duplicate-modal');
+        }
+
+        // Initialize app on load
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeTheme();
+            initializeApp();
+        });
+
+        // Connection status monitoring
+        function updateConnectionStatus() {
+            const isOnline = navigator.onLine;
+            const statusElement = document.getElementById('connection-status');
+            const iconElement = document.getElementById('connection-icon');
             
-            if (totalTransactions === 0) {
-                pagination.classList.add('hidden');
-                return;
-            }
-            
-            pagination.classList.remove('hidden');
-            
-            const start = currentPage * pageSize + 1;
-            const end = Math.min((currentPage + 1) * pageSize, totalTransactions);
-            
-            document.getElementById('showing-range').textContent = `${start}-${end}`;
-            document.getElementById('total-count').textContent = totalTransactions;
-            document.getElementById('page-info').textContent = `Page ${currentPage + 1} of ${totalPages}`;
-            
-            document.getElementById('prev-btn').disabled = currentPage === 0;
-            document.getElementById('next-btn').disabled = currentPage >= totalPages - 1;
-        }
-
-        function nextPage() {
-            if (currentPage < Math.ceil(totalTransactions / pageSize) - 1) {
-                currentPage++;
-                loadTransactions();
-            }
-        }
-
-        function previousPage() {
-            if (currentPage > 0) {
-                currentPage--;
-                loadTransactions();
-            }
-        }
-
-        function changePageSize() {
-            pageSize = parseInt(document.getElementById('page-size').value);
-            currentPage = 0;
-            loadTransactions();
-        }
-
-        // Modal functions
-        function openAllTransactionsModal() {
-            document.getElementById('all-transactions-modal').classList.add('active');
-            loadAllTransactions();
-        }
-
-        function closeModal(modalId) {
-            document.getElementById(modalId).classList.remove('active');
-            
-            // Clean up WebSocket if needed
-            if (uploadWebSocket) {
-                uploadWebSocket.close();
-                uploadWebSocket = null;
-            }
-        }
-
-        // Load all transactions for modal
-        async function loadAllTransactions() {
-            if (!authToken) return;
-
-            try {
-                const response = await fetch(`${API_BASE}/transactions/?skip=0&limit=10000`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-
-                if (response.ok) {
-                    const data = await response.json();
-                    displayAllTransactions(data.items);
-                    updateCategoryFilter(data.items);
-                } else {
-                    showResult('Failed to load all transactions', 'error');
-                }
-            } catch (error) {
-                showResult(`Error loading all transactions: ${error.message}`, 'error');
-            }
-        }
-
-        function displayAllTransactions(transactionList) {
-            const container = document.getElementById('all-transactions-list');
-            
-            if (transactionList.length === 0) {
-                container.innerHTML = '<div style="padding: 1.5rem; text-align: center; color: #6b7280;">No transactions found</div>';
-                return;
-            }
-
-            container.innerHTML = transactionList.map(tx => {
-                const amount = parseFloat(tx.amount);
-                const amountClass = amount >= 0 ? 'amount-positive' : 'amount-negative';
-                const amountSymbol = amount >= 0 ? '+' : '';
-                
-                return `
-                    <div class="transaction-item">
-                        <div class="transaction-details">
-                            <div class="transaction-beneficiary">${tx.beneficiary}</div>
-                            <div class="transaction-date">${new Date(tx.transaction_date).toLocaleDateString()}</div>
-                            ${tx.category ? `<div class="transaction-category">${tx.category}</div>` : ''}
-                        </div>
-                        <div class="transaction-amount ${amountClass}">
-                            ${amountSymbol}€${Math.abs(amount).toFixed(2)}
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function updateCategoryFilter(transactionList) {
-            const categoryFilter = document.getElementById('category-filter');
-            const uniqueCategories = [...new Set(transactionList.map(tx => tx.category).filter(Boolean))];
-            
-            // Preserve current selection
-            const currentValue = categoryFilter.value;
-            categoryFilter.innerHTML = '<option value="">All Categories</option>';
-            
-            uniqueCategories.forEach(category => {
-                const option = document.createElement('option');
-                option.value = category;
-                option.textContent = category;
-                categoryFilter.appendChild(option);
-            });
-            
-            categoryFilter.value = currentValue;
-        }
-
-        // Filter functionality
-        async function filterTransactions() {
-            const search = document.getElementById('search-input').value;
-            const category = document.getElementById('category-filter').value;
-            const dateFrom = document.getElementById('date-from').value;
-            const dateTo = document.getElementById('date-to').value;
-
-            const params = new URLSearchParams({
-                skip: '0',
-                limit: '10000'
-            });
-
-            if (search) params.append('search', search);
-            if (category) params.append('category', category);
-            if (dateFrom) params.append('date_from', dateFrom);
-            if (dateTo) params.append('date_to', dateTo);
-
-            try {
-                const response = await fetch(`${API_BASE}/transactions/?${params}`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-
-                if (response.ok) {
-                    const data = await response.json();
-                    displayAllTransactions(data.items);
-                }
-            } catch (error) {
-                console.error('Error filtering transactions:', error);
-            }
-        }
-
-        // Transaction stats
-        async function loadTransactionStats() {
-            if (!authToken) return;
-
-            try {
-                const response = await fetch(`${API_BASE}/transactions/stats`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-
-                if (response.ok) {
-                    const stats = await response.json();
-                    displayTransactionStats(stats);
-                }
-            } catch (error) {
-                console.error('Error loading transaction stats:', error);
-            }
-        }
-
-        function displayTransactionStats(stats) {
-            const monthlyStats = document.getElementById('monthly-stats');
-            const categoryStats = document.getElementById('category-stats');
-
-            monthlyStats.innerHTML = `
-                <div style="font-size: 0.75rem;">
-                    <div>Total Transactions: ${stats.total_transactions}</div>
-                    <div>Income: €${stats.total_income}</div>
-                    <div>Expenses: €${stats.total_expenses}</div>
-                    <div>Net: €${stats.net_balance}</div>
-                </div>
-            `;
-
-            if (stats.categories && Object.keys(stats.categories).length > 0) {
-                const sortedCategories = Object.entries(stats.categories)
-                    .sort(([,a], [,b]) => Math.abs(b.amount) - Math.abs(a.amount))
-                    .slice(0, 5);
-
-                categoryStats.innerHTML = sortedCategories.map(([category, data]) => 
-                    `<div style="display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 0.25rem;">
-                        <span>${category}</span>
-                        <span>€${Math.abs(data.amount).toFixed(2)}</span>
-                    </div>`
-                ).join('');
+            if (isOnline) {
+                statusElement.className = 'connection-status connection-online';
+                statusElement.innerHTML = '<span id="connection-icon">🟢</span> Connected';
             } else {
-                categoryStats.innerHTML = '<div style="font-size: 0.75rem; color: #6b7280;">No category data</div>';
+                statusElement.className = 'connection-status connection-offline';
+                statusElement.innerHTML = '<span id="connection-icon">🔴</span> Offline';
             }
         }
 
-        // Utility functions
-        function showResult(message, type) {
-            const className = type === 'error' ? 'error-message' : 'result-message';
-            const div = document.createElement('div');
-            div.className = className;
-            div.innerHTML = message;
-            document.getElementById('auth-section').appendChild(div);
-
-            setTimeout(() => div.remove(), 8000);
-        }
-
-        // Auto-refresh connection status
-        setInterval(checkConnection, 30000);
-
-        // Close modals when clicking outside
-        document.addEventListener('click', function(e) {
-            if (e.target.classList.contains('modal')) {
-                closeModal(e.target.id);
-            }
-        });
-
-        // Keyboard shortcuts
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                // Close any open modal
-                document.querySelectorAll('.modal.active').forEach(modal => {
-                    closeModal(modal.id);
-                });
-            }
-        });
-
-        // Auto-refresh staged transactions every 30 seconds
-        setInterval(() => {
-            if (document.querySelector('#staged-tab').classList.contains('active')) {
-                loadStagedTransactions();
-            }
-        }, 30000);
+        window.addEventListener('online', updateConnectionStatus);
+        window.addEventListener('offline', updateConnectionStatus);
+        updateConnectionStatus(); // Initial check
     </script>
 </body>
 </html>
