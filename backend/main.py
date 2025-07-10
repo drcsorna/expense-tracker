@@ -1,7 +1,7 @@
 # backend/main.py
 # Main FastAPI app instance with enhanced staged data architecture
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from typing import List, Optional
 import os
 from decimal import Decimal
@@ -64,7 +64,7 @@ def read_root():
         "status": "running",
         "features": [
             "Staged data processing",
-            "Smart categorization",
+            "Smart categorization", 
             "Bulk operations",
             "Real-time progress tracking",
             "Advanced filtering"
@@ -143,31 +143,54 @@ def read_transactions(
     db: Session = Depends(get_db)
 ):
     """Get paginated transactions with filtering."""
-    query = db.query(models.Transaction).filter(models.Transaction.owner_id == current_user.id)
+    query = db.query(models.Transaction).filter(
+        models.Transaction.owner_id == current_user.id
+    )
     
     # Apply filters
     if search:
-        query = query.filter(models.Transaction.beneficiary.ilike(f"%{search}%"))
+        query = query.filter(
+            or_(
+                models.Transaction.beneficiary.ilike(f"%{search}%"),
+                models.Transaction.notes.ilike(f"%{search}%")
+            )
+        )
+    
     if category:
         query = query.filter(models.Transaction.category == category)
+    
     if date_from:
-        query = query.filter(models.Transaction.transaction_date >= date_from)
+        try:
+            date_from_obj = datetime.strptime(date_from, "%Y-%m-%d").date()
+            query = query.filter(models.Transaction.transaction_date >= date_from_obj)
+        except ValueError:
+            pass
+    
     if date_to:
-        query = query.filter(models.Transaction.transaction_date <= date_to)
+        try:
+            date_to_obj = datetime.strptime(date_to, "%Y-%m-%d").date()
+            query = query.filter(models.Transaction.transaction_date <= date_to_obj)
+        except ValueError:
+            pass
+    
     if is_private is not None:
         query = query.filter(models.Transaction.is_private == is_private)
     
     # Apply sorting
+    sort_column = getattr(models.Transaction, sort_by, models.Transaction.transaction_date)
     if sort_order.lower() == "desc":
-        query = query.order_by(desc(getattr(models.Transaction, sort_by)))
+        query = query.order_by(desc(sort_column))
     else:
-        query = query.order_by(asc(getattr(models.Transaction, sort_by)))
+        query = query.order_by(asc(sort_column))
     
+    # Get total count
     total = query.count()
-    transactions = query.offset(skip).limit(limit).all()
+    
+    # Apply pagination
+    items = query.offset(skip).limit(limit).all()
     
     return {
-        "items": transactions,
+        "items": items,
         "total": total,
         "skip": skip,
         "limit": limit,
@@ -175,18 +198,7 @@ def read_transactions(
         "has_previous": skip > 0
     }
 
-@app.get("/transactions/count")
-def get_transactions_count(
-    current_user: schemas.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Get total count of confirmed transactions."""
-    count = db.query(models.Transaction).filter(
-        models.Transaction.owner_id == current_user.id
-    ).count()
-    return {"total": count}
-
-@app.get("/transactions/stats", response_model=schemas.TransactionStats)
+@app.get("/transactions/stats")
 def get_transaction_stats(
     current_user: schemas.User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -196,37 +208,52 @@ def get_transaction_stats(
         models.Transaction.owner_id == current_user.id
     ).all()
     
-    total_transactions = len(transactions)
+    if not transactions:
+        return {
+            "total_transactions": 0,
+            "total_income": "0.00",
+            "total_expenses": "0.00",
+            "net_balance": "0.00",
+            "categories": {}
+        }
+    
     total_income = sum(t.amount for t in transactions if t.amount > 0)
-    total_expenses = abs(sum(t.amount for t in transactions if t.amount < 0))
-    net_balance = total_income - total_expenses
+    total_expenses = sum(abs(t.amount) for t in transactions if t.amount < 0)
     
     # Category breakdown
-    categories_breakdown = {}
+    category_stats = {}
     for transaction in transactions:
         cat = transaction.category or "Uncategorized"
-        categories_breakdown[cat] = categories_breakdown.get(cat, Decimal(0)) + abs(transaction.amount)
-    
-    # Monthly summary (simplified)
-    monthly_summary = {}
-    for transaction in transactions:
-        month_key = transaction.transaction_date.strftime("%Y-%m")
-        if month_key not in monthly_summary:
-            monthly_summary[month_key] = {"income": Decimal(0), "expenses": Decimal(0)}
-        
-        if transaction.amount > 0:
-            monthly_summary[month_key]["income"] += transaction.amount
-        else:
-            monthly_summary[month_key]["expenses"] += abs(transaction.amount)
+        if cat not in category_stats:
+            category_stats[cat] = {"count": 0, "amount": 0}
+        category_stats[cat]["count"] += 1
+        category_stats[cat]["amount"] += float(transaction.amount)
     
     return {
-        "total_transactions": total_transactions,
-        "total_income": total_income,
-        "total_expenses": total_expenses,
-        "net_balance": net_balance,
-        "categories_breakdown": categories_breakdown,
-        "monthly_summary": monthly_summary
+        "total_transactions": len(transactions),
+        "total_income": f"{total_income:.2f}",
+        "total_expenses": f"{total_expenses:.2f}",
+        "net_balance": f"{total_income - total_expenses:.2f}",
+        "categories": category_stats
     }
+
+@app.post("/transactions/", response_model=schemas.Transaction)
+def create_transaction(
+    transaction: schemas.TransactionCreate,
+    current_user: schemas.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Create a new transaction manually."""
+    db_transaction = models.Transaction(
+        **transaction.dict(),
+        owner_id=current_user.id,
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow()
+    )
+    db.add(db_transaction)
+    db.commit()
+    db.refresh(db_transaction)
+    return db_transaction
 
 @app.get("/transactions/{transaction_id}", response_model=schemas.Transaction)
 def read_transaction(
@@ -251,38 +278,21 @@ def update_transaction(
     db: Session = Depends(get_db)
 ):
     """Update a transaction."""
-    db_transaction = db.query(models.Transaction).filter(
+    transaction = db.query(models.Transaction).filter(
         models.Transaction.id == transaction_id,
         models.Transaction.owner_id == current_user.id
     ).first()
-    if not db_transaction:
+    if transaction is None:
         raise HTTPException(status_code=404, detail="Transaction not found")
     
-    update_data = transaction_update.dict(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(db_transaction, field, value)
+    update_dict = transaction_update.dict(exclude_unset=True)
+    for field, value in update_dict.items():
+        setattr(transaction, field, value)
     
-    db_transaction.updated_at = datetime.utcnow()
+    transaction.updated_at = datetime.utcnow()
     db.commit()
-    db.refresh(db_transaction)
-    return db_transaction
-
-@app.post("/transactions/", response_model=schemas.Transaction)
-def create_transaction(
-    transaction: schemas.TransactionCreate,
-    current_user: schemas.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Create a new transaction."""
-    db_transaction = models.Transaction(
-        **transaction.dict(),
-        owner_id=current_user.id,
-        confirmed_at=datetime.utcnow()
-    )
-    db.add(db_transaction)
-    db.commit()
-    db.refresh(db_transaction)
-    return db_transaction
+    db.refresh(transaction)
+    return transaction
 
 @app.post("/transactions/{transaction_id}/split", response_model=schemas.SplitResult)
 def split_transaction(
@@ -300,35 +310,47 @@ def split_transaction(
     if not original_transaction:
         raise HTTPException(status_code=404, detail="Transaction not found")
     
-    # Validate split amounts
-    total_split_amount = sum(Decimal(str(split['amount'])) for split in split_data.splits)
-    if abs(total_split_amount - abs(original_transaction.amount)) > Decimal('0.01'):
-        raise HTTPException(status_code=400, detail="Split amounts don't match original amount")
+    if original_transaction.is_split:
+        raise HTTPException(status_code=400, detail="Transaction is already split")
     
-    new_transaction_ids = []
+    # Validate split amounts
+    split_total = sum(Decimal(str(split['amount'])) for split in split_data.splits)
+    if abs(split_total - original_transaction.amount) > Decimal('0.01'):
+        raise HTTPException(
+            status_code=400, 
+            detail="Split amounts must sum to original transaction amount"
+        )
     
     try:
+        new_transaction_ids = []
+        
         # Mark original as split
         original_transaction.is_split = True
         original_transaction.split_reason = split_data.reason
+        original_transaction.updated_at = datetime.utcnow()
         
         # Create split transactions
         for i, split in enumerate(split_data.splits):
-            new_transaction = models.Transaction(
+            split_transaction = models.Transaction(
                 transaction_date=original_transaction.transaction_date,
-                beneficiary=split.get('beneficiary', f"{original_transaction.beneficiary} (Split {i+1})"),
+                beneficiary=original_transaction.beneficiary,
                 amount=Decimal(str(split['amount'])),
                 category=split.get('category', original_transaction.category),
                 labels=split.get('labels', original_transaction.labels),
                 is_private=original_transaction.is_private,
-                parent_transaction_id=original_transaction.id,
+                notes=f"Split {i+1}: {split.get('notes', '')}",
                 owner_id=current_user.id,
-                confirmed_at=datetime.utcnow(),
-                notes=split.get('notes')
+                is_split=True,
+                parent_transaction_id=original_transaction.id,
+                split_reason=split_data.reason,
+                source_upload_session_id=original_transaction.source_upload_session_id,
+                raw_data=original_transaction.raw_data,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
             )
-            db.add(new_transaction)
+            db.add(split_transaction)
             db.flush()
-            new_transaction_ids.append(new_transaction.id)
+            new_transaction_ids.append(split_transaction.id)
         
         db.commit()
         
@@ -338,7 +360,7 @@ def split_transaction(
             "new_transaction_ids": new_transaction_ids,
             "message": f"Transaction split into {len(split_data.splits)} parts"
         }
-    
+        
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error splitting transaction: {str(e)}")
@@ -449,7 +471,9 @@ def confirm_staged_transaction(
         owner_id=current_user.id,
         source_upload_session_id=staged_transaction.upload_session_id,
         confirmed_at=datetime.utcnow(),
-        raw_data=staged_transaction.raw_transaction_data
+        raw_data=staged_transaction.raw_transaction_data,
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow()
     )
     
     db.add(confirmed_transaction)
@@ -484,51 +508,52 @@ def bulk_staged_action(
     errors = []
     
     try:
-        for staged_tx in staged_transactions:
+        for staged_transaction in staged_transactions:
             try:
                 if action_data.action == "confirm":
-                    # Confirm transaction
+                    # Create confirmed transaction
                     confirmed_transaction = models.Transaction(
-                        transaction_date=staged_tx.transaction_date,
-                        beneficiary=staged_tx.beneficiary,
-                        amount=staged_tx.amount,
-                        category=staged_tx.category,
-                        labels=staged_tx.labels,
-                        is_private=staged_tx.is_private,
-                        notes=staged_tx.notes,
+                        transaction_date=staged_transaction.transaction_date,
+                        beneficiary=staged_transaction.beneficiary,
+                        amount=staged_transaction.amount,
+                        category=staged_transaction.category,
+                        labels=staged_transaction.labels,
+                        is_private=staged_transaction.is_private,
+                        notes=staged_transaction.notes,
                         owner_id=current_user.id,
-                        source_upload_session_id=staged_tx.upload_session_id,
+                        source_upload_session_id=staged_transaction.upload_session_id,
                         confirmed_at=datetime.utcnow(),
-                        raw_data=staged_tx.raw_transaction_data
+                        raw_data=staged_transaction.raw_transaction_data,
+                        created_at=datetime.utcnow(),
+                        updated_at=datetime.utcnow()
                     )
                     db.add(confirmed_transaction)
                     db.flush()
                     
-                    staged_tx.status = schemas.TransactionStatusEnum.CONFIRMED
-                    staged_tx.confirmed_transaction_id = confirmed_transaction.id
+                    staged_transaction.status = schemas.TransactionStatusEnum.CONFIRMED
+                    staged_transaction.confirmed_transaction_id = confirmed_transaction.id
                     
                 elif action_data.action == "reject":
-                    staged_tx.status = schemas.TransactionStatusEnum.REJECTED
+                    staged_transaction.status = schemas.TransactionStatusEnum.REJECTED
                     
                 elif action_data.action == "update_category":
                     if action_data.category:
-                        staged_tx.category = action_data.category
+                        staged_transaction.category = action_data.category
+                    if action_data.notes:
+                        staged_transaction.notes = action_data.notes
                 
-                staged_tx.reviewed_at = datetime.utcnow()
-                if action_data.notes:
-                    staged_tx.notes = action_data.notes
-                
+                staged_transaction.reviewed_at = datetime.utcnow()
                 processed_count += 1
                 
             except Exception as e:
                 failed_count += 1
-                errors.append(f"Transaction {staged_tx.id}: {str(e)}")
+                errors.append(f"Transaction {staged_transaction.id}: {str(e)}")
         
         db.commit()
         
         return {
-            "success": True,
-            "message": f"Processed {processed_count} transactions",
+            "success": processed_count > 0,
+            "message": f"Processed {processed_count} transactions, {failed_count} failed",
             "processed_count": processed_count,
             "failed_count": failed_count,
             "errors": errors
@@ -545,7 +570,7 @@ def read_categories(
     current_user: schemas.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get user categories."""
+    """Get all categories for the current user."""
     return db.query(models.Category).filter(
         models.Category.user_id == current_user.id
     ).order_by(models.Category.name).all()
@@ -557,7 +582,11 @@ def create_category(
     db: Session = Depends(get_db)
 ):
     """Create a new category."""
-    db_category = models.Category(**category.dict(), user_id=current_user.id)
+    db_category = models.Category(
+        **category.dict(),
+        user_id=current_user.id,
+        created_at=datetime.utcnow()
+    )
     db.add(db_category)
     db.commit()
     db.refresh(db_category)
@@ -568,11 +597,11 @@ def create_category(
 @app.get("/upload-sessions/", response_model=List[schemas.UploadSession])
 def read_upload_sessions(
     skip: int = 0,
-    limit: int = 10,
+    limit: int = 50,
     current_user: schemas.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get upload sessions for the user."""
+    """Get upload sessions for the current user."""
     return db.query(models.UploadSession).filter(
         models.UploadSession.user_id == current_user.id
     ).order_by(desc(models.UploadSession.upload_date)).offset(skip).limit(limit).all()
@@ -588,8 +617,6 @@ def read_upload_session(
         models.UploadSession.id == session_id,
         models.UploadSession.user_id == current_user.id
     ).first()
-    
-    if not session:
+    if session is None:
         raise HTTPException(status_code=404, detail="Upload session not found")
-    
     return session

@@ -55,7 +55,7 @@ async def websocket_progress(websocket: WebSocket, session_id: str):
     except WebSocketDisconnect:
         manager.disconnect(session_id)
 
-@router.post("/transactions/")
+@router.post("/transactions/", response_model=schemas.UploadResult)
 async def upload_transactions(
     file: UploadFile = File(...),
     current_user: schemas.User = Depends(get_current_user),
@@ -104,6 +104,8 @@ async def upload_transactions(
             detail="Empty file provided"
         )
     
+    processing_start = datetime.utcnow()
+    
     try:
         # Create upload session
         upload_session = models.UploadSession(
@@ -112,7 +114,7 @@ async def upload_transactions(
             file_type=file_extension,
             status=models.UploadStatus.PROCESSING,
             user_id=current_user.id,
-            processing_start=datetime.utcnow()
+            processing_start=processing_start
         )
         db.add(upload_session)
         db.commit()
@@ -137,214 +139,157 @@ async def upload_transactions(
             db=db
         )
         
+        processing_end = datetime.utcnow()
+        processing_time = (processing_end - processing_start).total_seconds()
+        
         # Update upload session with final results
-        upload_session.status = models.UploadStatus.STAGED if result['success'] else models.UploadStatus.FAILED
-        upload_session.processing_end = datetime.utcnow()
+        upload_session.status = models.UploadStatus.STAGED if result.get('success', False) else models.UploadStatus.FAILED
+        upload_session.processing_end = processing_end
         upload_session.total_rows = result.get('total_rows', 0)
         upload_session.staged_count = result.get('staged_count', 0)
         upload_session.error_count = result.get('error_count', 0)
         upload_session.duplicate_count = result.get('duplicate_count', 0)
-        upload_session.format_detected = result.get('format_detected', 'unknown')
-        upload_session.processing_log = {
-            'result': result,
-            'processing_time': (upload_session.processing_end - upload_session.processing_start).total_seconds()
-        }
         
         db.commit()
         
         # Send final progress update
-        await progress_tracker.send_final_update(result)
-        
-        return {
-            "success": result['success'],
+        await progress_tracker.send_final_update({
+            "success": result.get('success', False),
             "session_id": upload_session.id,
-            "filename": file.filename,
-            "file_size": len(content),
-            "total_rows": result.get('total_rows', 0),
-            "staged_count": result.get('staged_count', 0),
-            "duplicate_count": result.get('duplicate_count', 0),
-            "error_count": result.get('error_count', 0),
-            "errors": result.get('errors', []),
-            "processing_time_seconds": upload_session.processing_log['processing_time'],
-            "format_detected": result.get('format_detected', 'unknown'),
-            "suggested_actions": [
-                "Review staged transactions in the staging area",
-                "Confirm or reject transactions individually",
-                "Use bulk actions for faster processing",
-                "Check categorization suggestions"
-            ] if result['success'] else [
-                "Check file format and content",
-                "Ensure file has required columns",
-                "Try a different file format"
+            "message": "File processing completed"
+        })
+        
+        # Prepare response
+        upload_result = schemas.UploadResult(
+            success=result.get('success', False),
+            session_id=upload_session.id,
+            filename=file.filename,
+            file_size=len(content),
+            total_rows=result.get('total_rows', 0),
+            staged_count=result.get('staged_count', 0),
+            duplicate_count=result.get('duplicate_count', 0),
+            error_count=result.get('error_count', 0),
+            errors=result.get('errors', []),
+            processing_time_seconds=processing_time,
+            format_detected=result.get('format_detected', 'unknown'),
+            suggested_actions=[
+                "Review staged transactions",
+                "Confirm or reject transactions",
+                "Update categories if needed"
             ]
-        }
+        )
         
-    except ValueError as e:
-        # Update session status on error
-        if 'upload_session' in locals():
-            upload_session.status = models.UploadStatus.FAILED
-            upload_session.processing_end = datetime.utcnow()
-            upload_session.processing_log = {'error': str(e)}
-            db.commit()
+        return upload_result
         
+    except Exception as e:
+        # Update upload session on error
+        upload_session.status = models.UploadStatus.FAILED
+        upload_session.processing_end = datetime.utcnow()
+        upload_session.processing_log = {"error": str(e)}
+        db.commit()
+        
+        # Send error update via WebSocket
+        if 'progress_tracker' in locals():
+            await progress_tracker.send_final_update({
+                "success": False,
+                "error": str(e),
+                "message": "File processing failed"
+            })
+        
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"File processing failed: {str(e)}"
+        )
+
+@router.post("/validate/", response_model=Dict[str, Any])
+async def validate_file_structure(
+    file: UploadFile = File(...),
+    current_user: schemas.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Validate file structure without full processing.
+    Useful for pre-upload validation.
+    """
+    
+    if not file.filename:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"File processing error: {str(e)}"
+            detail="No file provided"
         )
-    except Exception as e:
-        # Update session status on error
-        if 'upload_session' in locals():
-            upload_session.status = models.UploadStatus.FAILED
-            upload_session.processing_end = datetime.utcnow()
-            upload_session.processing_log = {'error': str(e)}
-            db.commit()
-        
+    
+    # Validate file type
+    allowed_extensions = {'.csv', '.xls', '.xlsx'}
+    file_extension = '.' + file.filename.split('.')[-1].lower()
+    
+    if file_extension not in allowed_extensions:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Unexpected error during file processing: {str(e)}"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported file type '{file_extension}'. Allowed: {', '.join(allowed_extensions)}"
         )
-
-@router.get("/progress/{session_id}")
-async def get_upload_progress(
-    session_id: int,
-    current_user: schemas.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Get current upload progress for a session."""
-    session = db.query(models.UploadSession).filter(
-        models.UploadSession.id == session_id,
-        models.UploadSession.user_id == current_user.id
-    ).first()
     
-    if not session:
-        raise HTTPException(status_code=404, detail="Upload session not found")
-    
-    # Calculate progress percentage
-    progress_percentage = 0.0
-    current_stage = "pending"
-    
-    if session.status == models.UploadStatus.PROCESSING:
-        progress_percentage = min((session.processed_rows / max(session.total_rows, 1)) * 100, 95)
-        current_stage = "processing"
-    elif session.status == models.UploadStatus.STAGED:
-        progress_percentage = 100.0
-        current_stage = "completed"
-    elif session.status == models.UploadStatus.FAILED:
-        current_stage = "failed"
-    
-    return {
-        "session_id": session.id,
-        "filename": session.filename,
-        "progress_percentage": progress_percentage,
-        "current_stage": current_stage,
-        "rows_processed": session.processed_rows,
-        "total_rows": session.total_rows,
-        "status": session.status.value
-    }
-
-@router.post("/batch-process/{session_id}")
-async def batch_process_large_file(
-    session_id: int,
-    batch_size: int = 1000,
-    current_user: schemas.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Process large files in batches for better performance."""
-    session = db.query(models.UploadSession).filter(
-        models.UploadSession.id == session_id,
-        models.UploadSession.user_id == current_user.id
-    ).first()
-    
-    if not session:
-        raise HTTPException(status_code=404, detail="Upload session not found")
-    
-    if not session.raw_data:
-        raise HTTPException(status_code=400, detail="No raw data found for processing")
-    
-    # Initialize progress tracker
-    progress_tracker = ProgressTracker(
-        session_id=str(session.id),
-        websocket_manager=manager
-    )
-    
-    processor = StagedTransactionProcessor(progress_tracker=progress_tracker)
+    # Read file content (limit to first 5MB for validation)
+    content = await file.read()
+    validation_content = content[:5 * 1024 * 1024]  # First 5MB
     
     try:
-        result = await processor.process_raw_data_in_batches(
-            raw_data=session.raw_data,
-            upload_session=session,
-            user=current_user,
-            db=db,
-            batch_size=batch_size
+        processor = StagedTransactionProcessor()
+        validation_result = await processor.validate_file_structure(
+            validation_content, file.filename
         )
         
         return {
-            "success": True,
-            "session_id": session.id,
-            "batches_processed": result.get('batches_processed', 0),
-            "total_staged": result.get('total_staged', 0),
-            "total_errors": result.get('total_errors', 0)
+            "filename": file.filename,
+            "file_size": len(content),
+            "validation": validation_result,
+            "timestamp": datetime.utcnow().isoformat()
         }
         
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Batch processing failed: {str(e)}"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"File validation failed: {str(e)}"
         )
 
-@router.get("/formats/")
+@router.get("/formats/", response_model=Dict[str, Any])
 async def get_supported_formats():
-    """Get information about supported file formats and their expected columns."""
+    """
+    Get information about supported file formats and their expected structure.
+    """
     return {
         "supported_formats": {
             "csv": {
-                "description": "Comma-separated values file",
-                "mime_types": ["text/csv", "application/csv"],
-                "extensions": [".csv"],
-                "max_size_mb": 25
+                "extension": ".csv",
+                "description": "Comma-separated values",
+                "required_columns": ["date", "description/beneficiary", "amount"],
+                "optional_columns": ["category", "notes", "labels"]
             },
             "excel": {
-                "description": "Microsoft Excel files",
-                "mime_types": ["application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
                 "extensions": [".xls", ".xlsx"],
-                "max_size_mb": 25
+                "description": "Microsoft Excel files",
+                "required_columns": ["date", "description/beneficiary", "amount"],
+                "optional_columns": ["category", "notes", "labels"],
+                "notes": "First sheet will be used for processing"
             }
         },
-        "expected_columns": {
-            "revolut_csv": {
-                "required": ["Completed Date", "Description", "Amount"],
-                "optional": ["Type", "Currency", "Product"],
-                "example": "Date,Description,Amount,Type\n2024-01-01,Coffee Shop,-5.50,CARD"
-            },
-            "dutch_bank_excel": {
-                "required": ["transactiondate", "description", "amount"],
-                "optional": ["mutationcode", "accountNumber"],
-                "example": "transactiondate,description,amount,mutationcode\n20240101,Coffee Purchase,-5.50,BA"
-            },
-            "generic": {
-                "required": ["date", "description", "amount"],
-                "optional": ["type", "category", "beneficiary"],
-                "example": "date,description,amount\n2024-01-01,Coffee Shop,-5.50"
-            }
+        "column_mapping": {
+            "date_columns": ["date", "transaction_date", "datum", "fecha"],
+            "description_columns": ["description", "beneficiary", "memo", "payee", "vendor"],
+            "amount_columns": ["amount", "value", "bedrag", "cantidad"],
+            "category_columns": ["category", "type", "categorie", "categoria"]
         },
-        "new_features": [
-            "Staged data processing for review before confirmation",
-            "Real-time progress tracking via WebSocket",
-            "Smart categorization suggestions based on merchant names",
-            "Batch processing for large files",
-            "Enhanced duplicate detection",
-            "Comprehensive audit trail",
-            "Bulk confirmation/rejection of staged transactions"
+        "date_formats": [
+            "YYYY-MM-DD",
+            "DD-MM-YYYY", 
+            "MM/DD/YYYY",
+            "DD/MM/YYYY",
+            "YYYY/MM/DD"
         ],
-        "processing_stages": [
-            "File Upload & Validation",
-            "Data Parsing & Format Detection", 
-            "Transaction Mapping & Validation",
-            "Duplicate Detection",
-            "Smart Categorization",
-            "Staging for Review",
-            "User Confirmation",
-            "Final Storage"
+        "notes": [
+            "Files should have headers in the first row",
+            "Amounts can be positive (income) or negative (expenses)",
+            "Categories will be auto-detected or can be assigned later",
+            "Maximum file size: 25MB"
         ]
     }
 
@@ -354,62 +299,76 @@ async def delete_upload_session(
     current_user: schemas.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Delete an upload session and its staged transactions."""
-    session = db.query(models.UploadSession).filter(
+    """
+    Delete an upload session and all its associated staged transactions.
+    This is useful for cleaning up failed uploads or starting over.
+    """
+    
+    # Find the upload session
+    upload_session = db.query(models.UploadSession).filter(
         models.UploadSession.id == session_id,
         models.UploadSession.user_id == current_user.id
     ).first()
     
-    if not session:
-        raise HTTPException(status_code=404, detail="Upload session not found")
-    
-    # Delete associated staged transactions
-    staged_count = db.query(models.StagedTransaction).filter(
-        models.StagedTransaction.upload_session_id == session_id
-    ).delete()
-    
-    # Delete the session
-    db.delete(session)
-    db.commit()
-    
-    return {
-        "message": f"Upload session deleted successfully",
-        "session_id": session_id,
-        "staged_transactions_deleted": staged_count
-    }
-
-@router.post("/validate-file/")
-async def validate_file_format(
-    file: UploadFile = File(...),
-    current_user: schemas.User = Depends(get_current_user)
-):
-    """Validate file format and structure without processing."""
-    if not file.filename:
-        raise HTTPException(status_code=400, detail="No file provided")
-    
-    # Read file content
-    content = await file.read()
+    if not upload_session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Upload session not found"
+        )
     
     try:
-        processor = StagedTransactionProcessor()
-        validation_result = await processor.validate_file_structure(content, file.filename)
+        # Delete associated staged transactions first
+        staged_count = db.query(models.StagedTransaction).filter(
+            models.StagedTransaction.upload_session_id == session_id
+        ).count()
+        
+        db.query(models.StagedTransaction).filter(
+            models.StagedTransaction.upload_session_id == session_id
+        ).delete()
+        
+        # Delete the upload session
+        db.delete(upload_session)
+        db.commit()
         
         return {
-            "valid": validation_result['valid'],
-            "format_detected": validation_result.get('format_detected', 'unknown'),
-            "estimated_rows": validation_result.get('estimated_rows', 0),
-            "columns_found": validation_result.get('columns_found', []),
-            "issues": validation_result.get('issues', []),
-            "suggestions": validation_result.get('suggestions', [])
+            "message": f"Upload session {session_id} deleted successfully",
+            "staged_transactions_deleted": staged_count
         }
         
     except Exception as e:
-        return {
-            "valid": False,
-            "error": str(e),
-            "suggestions": [
-                "Check file format (CSV, XLS, XLSX)",
-                "Ensure file has required columns",
-                "Verify file is not corrupted"
-            ]
-        }
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete upload session: {str(e)}"
+        )
+
+@router.get("/sessions/{session_id}/staged-transactions", response_model=List[schemas.StagedTransaction])
+async def get_session_staged_transactions(
+    session_id: int,
+    skip: int = 0,
+    limit: int = 100,
+    current_user: schemas.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get all staged transactions for a specific upload session.
+    """
+    
+    # Verify session ownership
+    upload_session = db.query(models.UploadSession).filter(
+        models.UploadSession.id == session_id,
+        models.UploadSession.user_id == current_user.id
+    ).first()
+    
+    if not upload_session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Upload session not found"
+        )
+    
+    # Get staged transactions for this session
+    staged_transactions = db.query(models.StagedTransaction).filter(
+        models.StagedTransaction.upload_session_id == session_id
+    ).order_by(models.StagedTransaction.created_at.desc()).offset(skip).limit(limit).all()
+    
+    return staged_transactions
