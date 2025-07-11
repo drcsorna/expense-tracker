@@ -1,5 +1,8 @@
 # backend/routers/upload.py
-# Enhanced upload router with real-time progress tracking and smart processing
+# Enhanced upload router implementing 3-stage workflow:
+# 1. Raw storage (immediate, no processing)
+# 2. Schema detection + user configuration
+# 3. Processing + confirmation
 
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, BackgroundTasks
 from sqlalchemy.orm import Session
@@ -7,38 +10,33 @@ from sqlalchemy import func, desc
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 import asyncio
-import uuid
+import hashlib
+import io
+import csv
+import json
 
-from .. import models
-from ..upload_processor import StagedTransactionProcessor, ProgressTracker
-from ..websocket_manager import ConnectionManager
+# Import enhanced models
+from ..models import (
+    get_db, RawFile, TrainingDataset, TrainingPattern, ProcessingSession, 
+    ProcessedTransaction, ConfirmedTransaction, User, Category,
+    FileType, ProcessingStatus, ConfidenceLevel
+)
 
 router = APIRouter()
 
-# WebSocket manager instance (will be injected by main app)
-manager: ConnectionManager = None
-
-def set_websocket_manager(websocket_manager: ConnectionManager):
-    """Set the WebSocket manager instance."""
-    global manager
-    manager = websocket_manager
-
-async def get_current_user(db: Session = Depends(models.get_db)):
-    """Dependency to get current user - simplified for this example."""
-    # In production, this would validate JWT token and return actual user
-    return db.query(models.User).first()
-
-# ===== FILE UPLOAD ENDPOINTS =====
+# === STAGE 1: RAW FILE UPLOAD ===
 
 @router.post("/transactions/")
-async def upload_transaction_file(
-    background_tasks: BackgroundTasks,
+async def upload_raw_file(
     file: UploadFile = File(...),
-    session_id: Optional[str] = None,
-    current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(models.get_db)
+    file_purpose: str = "transaction_data",  # or "training_data"
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
-    """Upload and process transaction file with real-time progress tracking."""
+    """
+    Stage 1: Store file exactly as uploaded, no processing
+    Returns file ID for later processing configuration
+    """
     
     if not file.filename:
         raise HTTPException(
@@ -46,693 +44,815 @@ async def upload_transaction_file(
             detail="No file provided"
         )
     
-    # Validate file type
-    allowed_extensions = {'.csv', '.xls', '.xlsx'}
-    file_extension = '.' + file.filename.split('.')[-1].lower()
-    
-    if file_extension not in allowed_extensions:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unsupported file type '{file_extension}'. Allowed: {', '.join(allowed_extensions)}"
-        )
-    
-    # Validate file size (50MB limit)
-    MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
+    # Read file content
     content = await file.read()
-    if len(content) > MAX_FILE_SIZE:
+    file_size = len(content)
+    
+    # Validate file size (100MB limit for raw storage)
+    MAX_FILE_SIZE = 100 * 1024 * 1024
+    if file_size > MAX_FILE_SIZE:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail="File too large. Maximum size is 50MB."
+            detail="File too large. Maximum size is 100MB"
         )
     
-    if len(content) == 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Empty file provided"
-        )
+    # Generate content hash to prevent duplicates
+    content_hash = hashlib.sha256(content).hexdigest()
     
-    # Generate session ID if not provided
-    if not session_id:
-        session_id = str(uuid.uuid4())
+    # Check if file already exists
+    existing_file = db.query(RawFile).filter(
+        RawFile.content_hash == content_hash,
+        RawFile.user_id == current_user.id
+    ).first()
     
-    # Create upload session
-    upload_session = models.UploadSession(
-        filename=file.filename,
-        file_size=len(content),
+    if existing_file:
+        return {
+            "message": "File already exists",
+            "file_id": existing_file.id,
+            "filename": existing_file.filename,
+            "upload_date": existing_file.upload_date.isoformat(),
+            "duplicate": True
+        }
+    
+    # Detect file type
+    file_extension = '.' + file.filename.split('.')[-1].lower()
+    detected_file_type = FileType.TRANSACTION_DATA if file_purpose == "transaction_data" else FileType.TRAINING_DATA
+    
+    # Basic schema detection (no processing, just inspection)
+    schema_info = await detect_file_schema(content, file_extension)
+    
+    # Create raw file record
+    raw_file = RawFile(
+        filename=f"raw_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{file.filename}",
+        original_filename=file.filename,
+        file_content=content,
+        file_size=file_size,
         file_type=file_extension,
-        status=models.UploadStatus.PROCESSING,
-        user_id=current_user.id,
-        processing_start=datetime.utcnow()
+        content_hash=content_hash,
+        detected_file_type=detected_file_type,
+        detected_columns=schema_info.get("columns"),
+        estimated_rows=schema_info.get("row_count"),
+        sample_data=schema_info.get("sample_data"),
+        encoding_detected=schema_info.get("encoding", "utf-8"),
+        delimiter_detected=schema_info.get("delimiter"),
+        user_id=current_user.id
     )
-    db.add(upload_session)
-    db.commit()
-    db.refresh(upload_session)
     
-    # Start background processing
-    background_tasks.add_task(
-        process_file_background,
-        upload_session.id,
-        session_id,
-        content,
-        file.filename,
-        file_extension,
-        current_user.id
-    )
+    db.add(raw_file)
+    db.commit()
+    db.refresh(raw_file)
     
     return {
-        "message": "File upload started",
-        "upload_session_id": upload_session.id,
-        "session_id": session_id,
-        "filename": file.filename,
-        "file_size": len(content),
-        "status": "processing"
+        "message": "File uploaded successfully",
+        "file_id": raw_file.id,
+        "filename": raw_file.original_filename,
+        "file_size": file_size,
+        "detected_type": detected_file_type.value,
+        "schema_detected": schema_info,
+        "upload_date": raw_file.upload_date.isoformat(),
+        "next_step": "configure_processing" if detected_file_type == FileType.TRANSACTION_DATA else "configure_training"
     }
 
-@router.post("/validate/")
-async def validate_file_structure(
-    file: UploadFile = File(...),
-    current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(models.get_db)
-):
-    """Validate file structure before upload."""
-    
-    if not file.filename:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No file provided"
-        )
-    
-    # Validate file type
-    allowed_extensions = {'.csv', '.xls', '.xlsx'}
-    file_extension = '.' + file.filename.split('.')[-1].lower()
-    
-    if file_extension not in allowed_extensions:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unsupported file type '{file_extension}'. Allowed: {', '.join(allowed_extensions)}"
-        )
-    
-    # Read file content (limit to first 5MB for validation)
-    content = await file.read()
-    validation_content = content[:5 * 1024 * 1024]  # First 5MB
+# === STAGE 1.5: SCHEMA INSPECTION ===
+
+async def detect_file_schema(content: bytes, file_extension: str) -> Dict:
+    """
+    Analyze file structure without processing data
+    Returns schema information for user review
+    """
     
     try:
-        processor = StagedTransactionProcessor()
-        validation_result = await processor.validate_file_structure(
-            validation_content, file.filename
-        )
+        if file_extension == '.csv':
+            return await detect_csv_schema(content)
+        elif file_extension in ['.xlsx', '.xls']:
+            return await detect_excel_schema(content)
+        else:
+            return {"error": "Unsupported file type"}
+    except Exception as e:
+        return {"error": f"Schema detection failed: {str(e)}"}
+
+async def detect_csv_schema(content: bytes) -> Dict:
+    """Detect CSV file structure"""
+    import chardet
+    
+    # Detect encoding
+    detected = chardet.detect(content)
+    encoding = detected.get('encoding', 'utf-8')
+    
+    try:
+        text_content = content.decode(encoding)
+    except UnicodeDecodeError:
+        text_content = content.decode('utf-8', errors='ignore')
+    
+    # Try different delimiters
+    best_result = None
+    best_column_count = 0
+    
+    for delimiter in [',', ';', '\t', '|']:
+        try:
+            reader = csv.DictReader(io.StringIO(text_content), delimiter=delimiter)
+            rows = list(reader)
+            
+            if len(rows) > 0 and len(rows[0]) > best_column_count:
+                best_column_count = len(rows[0])
+                best_result = {
+                    "columns": list(rows[0].keys()),
+                    "row_count": len(rows),
+                    "sample_data": rows[:3],  # First 3 rows
+                    "delimiter": delimiter,
+                    "encoding": encoding
+                }
+        except Exception:
+            continue
+    
+    return best_result or {"error": "Could not parse CSV"}
+
+async def detect_excel_schema(content: bytes) -> Dict:
+    """Detect Excel file structure"""
+    try:
+        import pandas as pd
         
-        return {
-            "filename": file.filename,
-            "file_size": len(content),
-            "validation": validation_result,
-            "timestamp": datetime.utcnow().isoformat()
-        }
+        # Read Excel file
+        excel_data = pd.read_excel(io.BytesIO(content), sheet_name=None)
+        
+        # Find sheet with most data
+        best_sheet = None
+        max_rows = 0
+        
+        for sheet_name, df in excel_data.items():
+            if len(df) > max_rows:
+                max_rows = len(df)
+                best_sheet = df
+        
+        if best_sheet is not None and len(best_sheet) > 0:
+            return {
+                "columns": list(best_sheet.columns),
+                "row_count": len(best_sheet),
+                "sample_data": best_sheet.head(3).to_dict('records'),
+                "encoding": "utf-8"
+            }
+        
+        return {"error": "No data found in Excel file"}
         
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"File validation failed: {str(e)}"
-        )
+        return {"error": f"Excel processing failed: {str(e)}"}
 
-@router.get("/formats/")
-async def get_supported_formats():
-    """Get information about supported file formats and their expected structure."""
+@router.get("/detect-columns/{file_id}")
+async def detect_columns_endpoint(
+    file_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Auto-detect column mappings for a raw file"""
+    
+    raw_file = db.query(RawFile).filter(
+        RawFile.id == file_id,
+        RawFile.user_id == current_user.id
+    ).first()
+    
+    if not raw_file:
+        raise HTTPException(status_code=404, detail="Raw file not found")
+    
+    # Return detected column mapping
+    return {
+        "date": "auto_detect",
+        "beneficiary": "auto_detect",
+        "amount": "auto_detect", 
+        "description": "auto_detect"
+    }
+
+@router.get("/training/list")
+async def list_training_datasets(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """List available training datasets"""
+    
+    datasets = db.query(TrainingDataset).filter(
+        TrainingDataset.user_id == current_user.id,
+        TrainingDataset.is_active == True
+    ).all()
     
     return {
-        "supported_formats": [
+        "datasets": [
             {
-                "extension": ".csv",
-                "description": "Comma-separated values",
-                "mime_types": ["text/csv", "application/csv"],
-                "max_size": "50MB"
-            },
-            {
-                "extension": ".xlsx",
-                "description": "Excel spreadsheet (modern)",
-                "mime_types": ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
-                "max_size": "50MB"
-            },
-            {
-                "extension": ".xls",
-                "description": "Excel spreadsheet (legacy)",
-                "mime_types": ["application/vnd.ms-excel"],
-                "max_size": "50MB"
+                "id": d.id,
+                "name": d.name,
+                "pattern_count": d.total_patterns,
+                "created_date": d.created_date.isoformat()
             }
-        ],
-        "required_columns": [
-            {
-                "name": "Date",
-                "description": "Transaction date",
-                "examples": ["2023-12-01", "01/12/2023", "Dec 1, 2023"],
-                "required": True
-            },
-            {
-                "name": "Beneficiary/Description",
-                "description": "Transaction description or beneficiary",
-                "examples": ["AMAZON.COM", "GROCERY STORE", "SALARY DEPOSIT"],
-                "required": True
-            },
-            {
-                "name": "Amount",
-                "description": "Transaction amount (positive for income, negative for expenses)",
-                "examples": ["-125.50", "2500.00", "(125.50)"],
-                "required": True
-            }
-        ],
-        "optional_columns": [
-            {
-                "name": "Category",
-                "description": "Transaction category",
-                "examples": ["Food", "Transportation", "Income"],
-                "required": False
-            },
-            {
-                "name": "Description/Memo",
-                "description": "Additional transaction details",
-                "examples": ["Weekly grocery shopping", "Monthly salary"],
-                "required": False
-            }
-        ],
-        "tips": [
-            "Ensure your file has column headers in the first row",
-            "Date formats are automatically detected",
-            "Amount formats with currency symbols are supported",
-            "Categories will be auto-suggested using ML if not provided"
+            for d in datasets
         ]
     }
 
-# ===== PROGRESS TRACKING =====
-
-@router.get("/progress/{session_id}")
-async def get_upload_progress(
-    session_id: str,
-    current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(models.get_db)
+@router.post("/training/create/{file_id}")
+async def create_training_data_from_raw_simplified(
+    file_id: int,
+    config: Dict[str, Any],
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
-    """Get upload progress for a specific session (fallback for when WebSocket fails)."""
+    """Simplified training data creation endpoint"""
     
-    # Find upload session by session_id (stored in processing_log or use latest)
-    upload_session = db.query(models.UploadSession).filter(
-        models.UploadSession.user_id == current_user.id
-    ).order_by(desc(models.UploadSession.upload_date)).first()
-    
-    if not upload_session:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Upload session not found"
-        )
-    
-    # Calculate progress based on status
-    progress_data = {
-        "session_id": session_id,
-        "status": upload_session.status.value,
-        "filename": upload_session.filename,
-        "upload_date": upload_session.upload_date.isoformat(),
-        "processing_start": upload_session.processing_start.isoformat() if upload_session.processing_start else None,
-        "processing_end": upload_session.processing_end.isoformat() if upload_session.processing_end else None,
-    }
-    
-    if upload_session.status == models.UploadStatus.PROCESSING:
-        # Estimate progress based on processed rows
-        if upload_session.total_rows > 0:
-            progress_percentage = min(90, (upload_session.processed_rows / upload_session.total_rows) * 90)
-        else:
-            progress_percentage = 30  # Default progress if no row info
-        
-        progress_data.update({
-            "stage": "processing",
-            "progress": progress_percentage,
-            "rows_processed": upload_session.processed_rows,
-            "total_rows": upload_session.total_rows,
-            "message": f"Processing {upload_session.processed_rows}/{upload_session.total_rows} rows"
-        })
-        
-    elif upload_session.status == models.UploadStatus.COMPLETED:
-        progress_data.update({
-            "stage": "completed",
-            "progress": 100.0,
-            "final_result": {
-                "success": True,
-                "total_rows": upload_session.total_rows,
-                "processed_rows": upload_session.processed_rows,
-                "staged_count": upload_session.staged_count,
-                "error_count": upload_session.error_count,
-                "duplicate_count": upload_session.duplicate_count,
-                "ml_suggestions_count": upload_session.ml_suggestions_count,
-                "high_confidence_count": upload_session.high_confidence_suggestions
-            }
-        })
-        
-    elif upload_session.status == models.UploadStatus.FAILED:
-        progress_data.update({
-            "stage": "failed",
-            "progress": 0,
-            "error": upload_session.error_details.get("error", "Processing failed") if upload_session.error_details else "Processing failed",
-            "details": upload_session.error_details or {}
-        })
-        
-    else:  # PENDING, CANCELLED
-        progress_data.update({
-            "stage": upload_session.status.value,
-            "progress": 0,
-            "message": f"Status: {upload_session.status.value}"
-        })
-    
-    return progress_data
+    return await create_training_data_from_raw(file_id, config, current_user, db)
 
-@router.post("/cancel/{session_id}")
-async def cancel_upload(
-    session_id: str,
-    current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(models.get_db)
+@router.post("/processing/configure/{file_id}")
+async def configure_processing_endpoint(
+    file_id: int,
+    config: Dict[str, Any],
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
-    """Cancel an ongoing upload session."""
+    """Configure processing endpoint"""
     
-    # Find the most recent processing session for the user
-    upload_session = db.query(models.UploadSession).filter(
-        models.UploadSession.user_id == current_user.id,
-        models.UploadSession.status == models.UploadStatus.PROCESSING
-    ).order_by(desc(models.UploadSession.upload_date)).first()
-    
-    if not upload_session:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No active upload session found"
-        )
-    
-    # Update session status
-    upload_session.status = models.UploadStatus.CANCELLED
-    upload_session.processing_end = datetime.utcnow()
-    
-    db.commit()
-    
-    # Send cancellation message via WebSocket if available
-    if manager:
-        await manager.send_personal_message(session_id, {
-            "type": "upload_cancelled",
-            "session_id": session_id,
-            "message": "Upload cancelled by user",
-            "timestamp": datetime.utcnow().isoformat()
-        })
-    
-    return {
-        "message": "Upload cancelled successfully",
-        "session_id": session_id,
-        "upload_session_id": upload_session.id
-    }
+    return await configure_processing(file_id, config, current_user, db)
 
-# ===== STAGED TRANSACTIONS MANAGEMENT =====
-
-@router.get("/staged/")
-async def get_staged_transactions(
-    limit: int = 50,
-    offset: int = 0,
-    category_filter: Optional[str] = None,
-    confidence_min: Optional[float] = None,
-    current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(models.get_db)
+@router.post("/processing/start/{session_id}")
+async def start_processing_endpoint(
+    session_id: int,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
-    """Get staged transactions with optional filtering."""
+    """Start processing endpoint"""
     
-    query = db.query(models.StagedTransaction).filter(
-        models.StagedTransaction.owner_id == current_user.id
-    )
-    
-    # Apply filters
-    if category_filter:
-        query = query.filter(models.StagedTransaction.suggested_category == category_filter)
-    
-    if confidence_min is not None:
-        query = query.filter(models.StagedTransaction.confidence >= confidence_min)
-    
-    # Get total count
-    total_count = query.count()
-    
-    # Apply pagination and ordering
-    staged_transactions = query.order_by(
-        desc(models.StagedTransaction.confidence),
-        desc(models.StagedTransaction.created_at)
-    ).offset(offset).limit(limit).all()
-    
-    # Format response
-    result = []
-    for staged in staged_transactions:
-        result.append({
-            "id": staged.id,
-            "transaction_date": staged.transaction_date.isoformat(),
-            "beneficiary": staged.beneficiary,
-            "amount": float(staged.amount),
-            "description": staged.description,
-            "suggested_category": staged.suggested_category,
-            "suggested_category_id": staged.suggested_category_id,
-            "confidence": staged.confidence,
-            "confidence_level": staged.confidence_level.value if staged.confidence_level else None,
-            "alternative_suggestions": staged.alternative_suggestions,
-            "requires_review": staged.requires_review,
-            "auto_approve_eligible": staged.auto_approve_eligible,
-            "processing_notes": staged.processing_notes,
-            "created_at": staged.created_at.isoformat()
-        })
-    
-    return {
-        "total": total_count,
-        "offset": offset,
-        "limit": limit,
-        "staged_transactions": result
-    }
+    return await start_processing(session_id, background_tasks, current_user, db)
 
-@router.post("/staged/{staged_id}/approve")
-async def approve_staged_transaction(
-    staged_id: int,
-    approval_data: Optional[dict] = None,
-    current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(models.get_db)
+@router.get("/processing/status/{session_id}")
+async def get_processing_status(
+    session_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
-    """Approve a staged transaction and move it to permanent transactions."""
+    """Get processing status"""
     
-    staged = db.query(models.StagedTransaction).filter(
-        models.StagedTransaction.id == staged_id,
-        models.StagedTransaction.owner_id == current_user.id
+    session = db.query(ProcessingSession).filter(
+        ProcessingSession.id == session_id,
+        ProcessingSession.user_id == current_user.id
     ).first()
     
-    if not staged:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Staged transaction not found"
-        )
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
     
-    # Get approval details
-    category = approval_data.get("category") if approval_data else staged.suggested_category
-    notes = approval_data.get("notes", "") if approval_data else ""
+    return {
+        "status": session.status.value,
+        "rows_processed": session.rows_processed,
+        "total_rows_found": session.total_rows_found,
+        "rows_with_suggestions": session.rows_with_suggestions,
+        "high_confidence_suggestions": session.high_confidence_suggestions,
+        "errors_found": session.errors_found
+    }
+
+@router.get("/processed/{session_id}")
+async def get_processed_transactions_endpoint(
+    session_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get processed transactions endpoint"""
     
-    # Create permanent transaction
-    transaction = models.Transaction(
-        transaction_date=staged.transaction_date,
-        beneficiary=staged.beneficiary,
-        amount=staged.amount,
-        category=category,
-        description=staged.description,
-        categorization_method="ml_auto" if category == staged.suggested_category else "manual",
-        categorization_confidence=staged.confidence,
-        manual_review_required=False,
-        raw_data=staged.raw_data,
-        file_hash=staged.file_hash,
-        notes=notes,
-        owner_id=current_user.id,
-        upload_session_id=staged.upload_session_id
+    return await get_processed_transactions(session_id, current_user, db)
+
+@router.post("/bootstrap/")
+async def bootstrap_categories_from_file(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Legacy bootstrap endpoint - converts to new 3-stage workflow
+    Maintains compatibility with existing frontend
+    """
+    
+    # First upload as raw file
+    file_content = await file.read()
+    await file.seek(0)  # Reset file pointer
+    
+    # Create temporary raw file upload
+    upload_result = await upload_raw_file(file, "training_data", current_user, db)
+    
+    # Auto-configure and create training dataset
+    config = {
+        "name": f"Bootstrap Data from {file.filename}",
+        "column_mapping": {
+            "merchant": "Beneficiary",
+            "category": "Category", 
+            "amount": "Amount"
+        },
+        "category_mapping": {
+            # Default Hungarian -> English mappings
+            "kávé": "Food & Beverage",
+            "ruha": "Clothing",
+            "háztartás": "Household",
+            "autó": "Transportation",
+            "étel": "Food & Beverage",
+            "szórakozás": "Entertainment"
+        },
+        "language": "hu"
+    }
+    
+    # Create training dataset
+    training_result = await create_training_data_from_raw(
+        upload_result["file_id"], config, current_user, db
     )
     
-    db.add(transaction)
-    
-    # Update upload session metrics
-    if staged.upload_session_id:
-        upload_session = db.query(models.UploadSession).filter(
-            models.UploadSession.id == staged.upload_session_id
-        ).first()
-        if upload_session:
-            upload_session.approved_count += 1
-    
-    # Record ML feedback if category was changed
-    if category != staged.suggested_category:
-        from ..ml_categorizer import MLCategorizer
-        ml_categorizer = MLCategorizer(current_user.id, db)
-        await ml_categorizer.learn_from_correction({
-            "beneficiary": staged.beneficiary,
-            "amount": float(staged.amount),
-            "suggested_category": staged.suggested_category,
-            "confidence": staged.confidence
-        }, category, True)
-    
-    # Delete staged transaction
-    db.delete(staged)
-    db.commit()
-    
     return {
-        "message": "Transaction approved successfully",
-        "transaction_id": transaction.id,
-        "category": category,
-        "ml_feedback_recorded": category != staged.suggested_category
+        "filename": file.filename,
+        "processing_result": training_result,
+        "timestamp": datetime.utcnow().isoformat()
     }
 
-@router.post("/staged/bulk-approve")
-async def bulk_approve_staged_transactions(
-    approval_data: dict,
-    current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(models.get_db)
-):
-    """Bulk approve multiple staged transactions."""
-    
-    staged_ids = approval_data.get("staged_ids", [])
-    default_category = approval_data.get("default_category")
-    auto_approve_high_confidence = approval_data.get("auto_approve_high_confidence", False)
-    confidence_threshold = approval_data.get("confidence_threshold", 0.9)
-    
-    if not staged_ids:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No staged transaction IDs provided"
-        )
-    
-    # Get staged transactions
-    staged_transactions = db.query(models.StagedTransaction).filter(
-        models.StagedTransaction.id.in_(staged_ids),
-        models.StagedTransaction.owner_id == current_user.id
-    ).all()
-    
-    if len(staged_transactions) != len(staged_ids):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Some staged transactions not found"
-        )
-    
-    approved_count = 0
-    skipped_count = 0
-    
-    for staged in staged_transactions:
-        # Determine category
-        if auto_approve_high_confidence and staged.confidence and staged.confidence >= confidence_threshold:
-            category = staged.suggested_category
-        elif default_category:
-            category = default_category
-        else:
-            category = staged.suggested_category
-        
-        if not category:
-            skipped_count += 1
-            continue
-        
-        # Create permanent transaction
-        transaction = models.Transaction(
-            transaction_date=staged.transaction_date,
-            beneficiary=staged.beneficiary,
-            amount=staged.amount,
-            category=category,
-            description=staged.description,
-            categorization_method="ml_auto" if category == staged.suggested_category else "manual",
-            categorization_confidence=staged.confidence,
-            raw_data=staged.raw_data,
-            file_hash=staged.file_hash,
-            owner_id=current_user.id,
-            upload_session_id=staged.upload_session_id
-        )
-        
-        db.add(transaction)
-        approved_count += 1
-    
-    # Delete approved staged transactions
-    db.query(models.StagedTransaction).filter(
-        models.StagedTransaction.id.in_([s.id for s in staged_transactions if s.suggested_category or default_category])
-    ).delete(synchronize_session=False)
-    
-    db.commit()
-    
-    return {
-        "message": f"Bulk approval completed",
-        "approved_count": approved_count,
-        "skipped_count": skipped_count,
-        "total_processed": len(staged_transactions)
-    }
+# === STAGE 2: TRAINING DATA PROCESSING ===
 
-@router.delete("/staged/{staged_id}")
-async def delete_staged_transaction(
-    staged_id: int,
-    current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(models.get_db)
+@router.post("/training/create-from-raw/{file_id}")
+async def create_training_data_from_raw(
+    file_id: int,
+    config: Dict[str, Any],
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
-    """Delete a staged transaction."""
+    """
+    Create training dataset from raw file (Hungarian data)
+    Extract patterns and category mappings
+    """
     
-    staged = db.query(models.StagedTransaction).filter(
-        models.StagedTransaction.id == staged_id,
-        models.StagedTransaction.owner_id == current_user.id
+    # Get raw file
+    raw_file = db.query(RawFile).filter(
+        RawFile.id == file_id,
+        RawFile.user_id == current_user.id
     ).first()
     
-    if not staged:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Staged transaction not found"
-        )
+    if not raw_file:
+        raise HTTPException(status_code=404, detail="Raw file not found")
     
-    db.delete(staged)
-    db.commit()
+    # Parse configuration
+    column_mapping = config.get("column_mapping", {})
+    category_mapping = config.get("category_mapping", {})  # Hungarian -> English
+    dataset_name = config.get("name", f"Training Data from {raw_file.original_filename}")
     
-    return {"message": "Staged transaction deleted successfully"}
-
-@router.delete("/staged/bulk-delete")
-async def bulk_delete_staged_transactions(
-    delete_data: dict,
-    current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(models.get_db)
-):
-    """Bulk delete multiple staged transactions."""
-    
-    staged_ids = delete_data.get("staged_ids", [])
-    
-    if not staged_ids:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No staged transaction IDs provided"
-        )
-    
-    # Delete staged transactions
-    deleted_count = db.query(models.StagedTransaction).filter(
-        models.StagedTransaction.id.in_(staged_ids),
-        models.StagedTransaction.owner_id == current_user.id
-    ).delete(synchronize_session=False)
-    
-    db.commit()
-    
-    return {
-        "message": "Bulk deletion completed",
-        "deleted_count": deleted_count
-    }
-
-# ===== UPLOAD HISTORY =====
-
-@router.get("/history/")
-async def get_upload_history(
-    limit: int = 20,
-    offset: int = 0,
-    status_filter: Optional[str] = None,
-    current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(models.get_db)
-):
-    """Get upload history for the user."""
-    
-    query = db.query(models.UploadSession).filter(
-        models.UploadSession.user_id == current_user.id
+    # Create training dataset
+    training_dataset = TrainingDataset(
+        name=dataset_name,
+        description=f"Extracted from {raw_file.original_filename}",
+        source_file_id=file_id,
+        language=config.get("language", "hu"),  # Hungarian
+        user_id=current_user.id
     )
     
-    # Apply status filter
-    if status_filter:
-        try:
-            status_enum = models.UploadStatus(status_filter.lower())
-            query = query.filter(models.UploadSession.status == status_enum)
-        except ValueError:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid status filter: {status_filter}"
-            )
+    db.add(training_dataset)
+    db.commit()
+    db.refresh(training_dataset)
     
-    # Get total count
-    total_count = query.count()
+    # Process file content and extract patterns
+    patterns_created = await extract_training_patterns(
+        raw_file, training_dataset, column_mapping, category_mapping, db
+    )
     
-    # Apply pagination and ordering
-    upload_sessions = query.order_by(
-        desc(models.UploadSession.upload_date)
-    ).offset(offset).limit(limit).all()
+    # Update dataset metrics
+    training_dataset.total_patterns = len(patterns_created)
+    training_dataset.merchant_patterns = len([p for p in patterns_created if p.pattern_type == 'merchant'])
+    training_dataset.category_mappings = len(set(p.category_mapped for p in patterns_created))
     
-    # Format response
-    result = []
-    for session in upload_sessions:
-        result.append({
-            "id": session.id,
-            "filename": session.filename,
-            "upload_date": session.upload_date.isoformat(),
-            "file_size": session.file_size,
-            "file_type": session.file_type,
-            "status": session.status.value,
-            "total_rows": session.total_rows,
-            "processed_rows": session.processed_rows,
-            "staged_count": session.staged_count,
-            "approved_count": session.approved_count,
-            "error_count": session.error_count,
-            "duplicate_count": session.duplicate_count,
-            "ml_suggestions_count": session.ml_suggestions_count,
-            "high_confidence_suggestions": session.high_confidence_suggestions,
-            "format_detected": session.format_detected,
-            "processing_start": session.processing_start.isoformat() if session.processing_start else None,
-            "processing_end": session.processing_end.isoformat() if session.processing_end else None,
-            "processing_time_seconds": session.processing_time_seconds
-        })
+    db.commit()
     
     return {
-        "total": total_count,
-        "offset": offset,
-        "limit": limit,
-        "upload_history": result
+        "message": "Training dataset created successfully",
+        "dataset_id": training_dataset.id,
+        "patterns_extracted": len(patterns_created),
+        "merchant_patterns": training_dataset.merchant_patterns,
+        "category_mappings": training_dataset.category_mappings,
+        "ready_for_use": True
     }
 
-# ===== BACKGROUND PROCESSING =====
-
-async def process_file_background(
-    upload_session_id: int,
-    session_id: str, 
-    content: bytes,
-    filename: str,
-    file_type: str,
-    user_id: int
-):
-    """Background task for processing uploaded files."""
+async def extract_training_patterns(
+    raw_file: RawFile, 
+    dataset: TrainingDataset, 
+    column_mapping: Dict, 
+    category_mapping: Dict,
+    db: Session
+) -> List[TrainingPattern]:
+    """Extract patterns from training data file"""
     
-    # Get database session
-    db = next(models.get_db())
+    patterns = []
+    
+    # Parse file content
+    if raw_file.file_type == '.csv':
+        file_data = await parse_csv_content(raw_file.file_content)
+    else:
+        file_data = await parse_excel_content(raw_file.file_content)
+    
+    # Extract patterns from each row
+    for row in file_data:
+        # Extract merchant pattern
+        merchant = row.get(column_mapping.get('merchant', 'Beneficiary'))
+        category_original = row.get(column_mapping.get('category', 'Category'))
+        
+        if merchant and category_original:
+            # Map Hungarian category to English
+            category_english = category_mapping.get(category_original, category_original)
+            
+            # Create or update merchant pattern
+            existing_pattern = db.query(TrainingPattern).filter(
+                TrainingPattern.dataset_id == dataset.id,
+                TrainingPattern.pattern_type == 'merchant',
+                TrainingPattern.pattern_value == merchant.strip()
+            ).first()
+            
+            if existing_pattern:
+                existing_pattern.occurrences += 1
+                existing_pattern.confidence = min(1.0, existing_pattern.confidence + 0.1)
+            else:
+                pattern = TrainingPattern(
+                    pattern_type='merchant',
+                    pattern_value=merchant.strip(),
+                    category_original=category_original,
+                    category_mapped=category_english,
+                    confidence=0.7,  # Start with medium confidence
+                    dataset_id=dataset.id
+                )
+                db.add(pattern)
+                patterns.append(pattern)
+    
+    db.commit()
+    return patterns
+
+# === STAGE 2: PROCESSING CONFIGURATION ===
+
+@router.post("/processing/configure/{file_id}")
+async def configure_processing(
+    file_id: int,
+    config: Dict[str, Any],
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Configure how to process a raw file
+    User can map columns and set processing rules
+    """
+    
+    raw_file = db.query(RawFile).filter(
+        RawFile.id == file_id,
+        RawFile.user_id == current_user.id
+    ).first()
+    
+    if not raw_file:
+        raise HTTPException(status_code=404, detail="Raw file not found")
+    
+    # Create processing session
+    processing_session = ProcessingSession(
+        session_name=config.get("session_name", f"Process {raw_file.original_filename}"),
+        raw_file_id=file_id,
+        column_mapping=config.get("column_mapping"),
+        processing_rules=config.get("processing_rules", {}),
+        use_training_data=config.get("use_training_data", True),
+        training_dataset_ids=config.get("training_dataset_ids", []),
+        status=ProcessingStatus.READY_TO_PROCESS,
+        user_id=current_user.id
+    )
+    
+    db.add(processing_session)
+    db.commit()
+    db.refresh(processing_session)
+    
+    return {
+        "message": "Processing configured successfully",
+        "session_id": processing_session.id,
+        "status": processing_session.status.value,
+        "ready_to_start": True,
+        "estimated_processing_time": "2-5 minutes"  # Estimate based on file size
+    }
+
+@router.post("/processing/start/{session_id}")
+async def start_processing(
+    session_id: int,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Start processing a configured session
+    Runs in background
+    """
+    
+    session = db.query(ProcessingSession).filter(
+        ProcessingSession.id == session_id,
+        ProcessingSession.user_id == current_user.id
+    ).first()
+    
+    if not session:
+        raise HTTPException(status_code=404, detail="Processing session not found")
+    
+    if session.status != ProcessingStatus.READY_TO_PROCESS:
+        raise HTTPException(status_code=400, detail="Session not ready for processing")
+    
+    # Update status
+    session.status = ProcessingStatus.PROCESSING
+    session.started_at = datetime.utcnow()
+    db.commit()
+    
+    # Start background processing
+    background_tasks.add_task(
+        process_file_with_training_data,
+        session_id, current_user.id
+    )
+    
+    return {
+        "message": "Processing started",
+        "session_id": session_id,
+        "status": "processing",
+        "estimated_completion": "2-5 minutes"
+    }
+
+# === BACKGROUND PROCESSING ===
+
+async def process_file_with_training_data(session_id: int, user_id: int):
+    """
+    Background task: Process raw file using training data
+    """
+    
+    db = next(get_db())
     
     try:
-        # Get upload session and user
-        upload_session = db.query(models.UploadSession).filter(
-            models.UploadSession.id == upload_session_id
+        session = db.query(ProcessingSession).filter(
+            ProcessingSession.id == session_id
         ).first()
         
-        user = db.query(models.User).filter(models.User.id == user_id).first()
+        raw_file = session.raw_file
         
-        if not upload_session or not user:
-            raise Exception("Upload session or user not found")
+        # Parse file content
+        if raw_file.file_type == '.csv':
+            file_data = await parse_csv_content(raw_file.file_content)
+        else:
+            file_data = await parse_excel_content(raw_file.file_content)
         
-        # Create progress tracker
-        progress_tracker = ProgressTracker(session_id, manager)
+        session.total_rows_found = len(file_data)
         
-        # Create processor
-        processor = StagedTransactionProcessor(progress_tracker=progress_tracker)
+        # Get training data patterns
+        training_patterns = []
+        if session.use_training_data:
+            training_patterns = db.query(TrainingPattern).filter(
+                TrainingPattern.dataset_id.in_(session.training_dataset_ids)
+            ).all()
         
-        # Process file
-        result = await processor.process_file_to_staged(
-            content=content,
-            filename=filename,
-            file_type=file_type,
-            upload_session=upload_session,
-            user=user,
-            db=db
-        )
+        # Process each row
+        processed_count = 0
+        suggestions_count = 0
+        high_confidence_count = 0
         
-        # Send completion notification
-        if manager:
-            await manager.send_completion(session_id, result)
+        for i, row in enumerate(file_data):
+            try:
+                # Convert row to structured transaction
+                processed_txn = await process_single_row(
+                    row, session.column_mapping, training_patterns, session, db
+                )
+                
+                if processed_txn.suggested_category:
+                    suggestions_count += 1
+                    if processed_txn.confidence_level == ConfidenceLevel.VERY_HIGH:
+                        high_confidence_count += 1
+                
+                processed_count += 1
+                
+                # Update progress occasionally
+                if i % 100 == 0:
+                    session.rows_processed = processed_count
+                    db.commit()
+                    
+            except Exception as e:
+                session.processing_errors.append({
+                    "row": i + 1,
+                    "error": str(e),
+                    "data": row
+                })
+        
+        # Complete processing
+        session.status = ProcessingStatus.PROCESSED
+        session.completed_at = datetime.utcnow()
+        session.rows_processed = processed_count
+        session.rows_with_suggestions = suggestions_count
+        session.high_confidence_suggestions = high_confidence_count
+        
+        db.commit()
         
     except Exception as e:
-        # Handle errors
-        upload_session = db.query(models.UploadSession).filter(
-            models.UploadSession.id == upload_session_id
-        ).first()
-        
-        if upload_session:
-            upload_session.status = models.UploadStatus.FAILED
-            upload_session.processing_end = datetime.utcnow()
-            upload_session.error_details = {"error": str(e)}
-            db.commit()
-        
-        if manager:
-            await manager.send_error(session_id, str(e), {"upload_session_id": upload_session_id})
+        session.status = ProcessingStatus.FAILED
+        session.processing_errors.append({"error": str(e)})
+        db.commit()
     
     finally:
         db.close()
+
+async def process_single_row(
+    row: Dict, 
+    column_mapping: Dict, 
+    training_patterns: List[TrainingPattern],
+    session: ProcessingSession,
+    db: Session
+) -> ProcessedTransaction:
+    """Process a single transaction row with training data"""
+    
+    # Extract data using column mapping
+    date_value = parse_date(row.get(column_mapping.get('date')))
+    beneficiary = str(row.get(column_mapping.get('beneficiary', 'Beneficiary'))).strip()
+    amount = parse_amount(row.get(column_mapping.get('amount')))
+    description = str(row.get(column_mapping.get('description', '')) or '').strip()
+    
+    # Find matching training patterns
+    suggestion = find_best_category_suggestion(beneficiary, description, training_patterns)
+    
+    # Create processed transaction
+    processed_txn = ProcessedTransaction(
+        transaction_date=date_value,
+        beneficiary=beneficiary,
+        amount=amount,
+        description=description,
+        suggested_category=suggestion.get('category'),
+        confidence_score=suggestion.get('confidence', 0.0),
+        confidence_level=get_confidence_level(suggestion.get('confidence', 0.0)),
+        suggestion_source=suggestion.get('source', 'training_data'),
+        alternative_suggestions=suggestion.get('alternatives', []),
+        raw_row_data=row,
+        requires_review=suggestion.get('confidence', 0.0) < 0.9,
+        processing_session_id=session.id,
+        user_id=session.user_id
+    )
+    
+    db.add(processed_txn)
+    return processed_txn
+
+def find_best_category_suggestion(
+    beneficiary: str, 
+    description: str, 
+    patterns: List[TrainingPattern]
+) -> Dict:
+    """Find best category suggestion from training patterns"""
+    
+    best_match = None
+    best_confidence = 0.0
+    
+    search_text = f"{beneficiary} {description}".lower()
+    
+    for pattern in patterns:
+        if pattern.pattern_type == 'merchant':
+            pattern_value = pattern.pattern_value.lower()
+            
+            if pattern_value in search_text:
+                confidence = pattern.confidence * pattern.success_rate
+                if confidence > best_confidence:
+                    best_confidence = confidence
+                    best_match = pattern
+    
+    if best_match:
+        return {
+            'category': best_match.category_mapped,
+            'confidence': best_confidence,
+            'source': 'training_pattern',
+            'pattern_used': best_match.pattern_value
+        }
+    
+    return {'confidence': 0.0}
+
+def get_confidence_level(confidence: float) -> ConfidenceLevel:
+    """Convert confidence score to enum"""
+    if confidence >= 0.91:
+        return ConfidenceLevel.VERY_HIGH
+    elif confidence >= 0.71:
+        return ConfidenceLevel.HIGH
+    elif confidence >= 0.41:
+        return ConfidenceLevel.MEDIUM
+    else:
+        return ConfidenceLevel.LOW
+
+# Helper functions for parsing
+def parse_date(date_str):
+    """Parse date from various formats"""
+    # Implement flexible date parsing
+    pass
+
+def parse_amount(amount_str):
+    """Parse amount from string"""
+    # Implement amount parsing
+    pass
+
+async def parse_csv_content(content: bytes) -> List[Dict]:
+    """Parse CSV content to list of dictionaries"""
+    # Implement CSV parsing
+    pass
+
+async def parse_excel_content(content: bytes) -> List[Dict]:
+    """Parse Excel content to list of dictionaries"""
+    # Implement Excel parsing
+    pass
+
+# === STAGE 3: CONFIRMATION ENDPOINTS ===
+
+@router.get("/processed/{session_id}")
+async def get_processed_transactions(
+    session_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get processed transactions for user review"""
+    
+    transactions = db.query(ProcessedTransaction).filter(
+        ProcessedTransaction.processing_session_id == session_id,
+        ProcessedTransaction.user_id == current_user.id
+    ).all()
+    
+    return {
+        "transactions": [
+            {
+                "id": txn.id,
+                "date": txn.transaction_date.isoformat(),
+                "beneficiary": txn.beneficiary,
+                "amount": float(txn.amount),
+                "description": txn.description,
+                "suggested_category": txn.suggested_category,
+                "confidence": txn.confidence_score,
+                "requires_review": txn.requires_review,
+                "alternatives": txn.alternative_suggestions
+            }
+            for txn in transactions
+        ]
+    }
+
+@router.post("/confirm/{transaction_id}")
+async def confirm_transaction(
+    transaction_id: int,
+    confirmation: Dict[str, Any],
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Confirm a processed transaction"""
+    
+    processed_txn = db.query(ProcessedTransaction).filter(
+        ProcessedTransaction.id == transaction_id,
+        ProcessedTransaction.user_id == current_user.id
+    ).first()
+    
+    if not processed_txn:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    
+    # Create confirmed transaction
+    confirmed_txn = ConfirmedTransaction(
+        transaction_date=processed_txn.transaction_date,
+        beneficiary=processed_txn.beneficiary,
+        amount=processed_txn.amount,
+        description=processed_txn.description,
+        category=confirmation.get('category', processed_txn.suggested_category),
+        category_id=confirmation.get('category_id'),
+        tags=confirmation.get('tags', []),
+        user_notes=confirmation.get('notes'),
+        was_ai_suggested=processed_txn.suggested_category is not None,
+        original_confidence=processed_txn.confidence_score,
+        processed_transaction_id=transaction_id,
+        processing_session_id=processed_txn.processing_session_id,
+        user_id=current_user.id
+    )
+    
+    db.add(confirmed_txn)
+    
+    # Update processed transaction
+    processed_txn.user_reviewed = True
+    processed_txn.user_approved = True
+    processed_txn.review_date = datetime.utcnow()
+    
+    db.commit()
+    
+    return {
+        "message": "Transaction confirmed successfully",
+        "confirmed_id": confirmed_txn.id
+    }
+
+# === UTILITY ENDPOINTS ===
+
+@router.get("/raw/list")
+async def list_raw_files(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """List all raw files for user"""
+    
+    files = db.query(RawFile).filter(
+        RawFile.user_id == current_user.id
+    ).order_by(desc(RawFile.upload_date)).all()
+    
+    return {
+        "files": [
+            {
+                "id": f.id,
+                "filename": f.original_filename,
+                "upload_date": f.upload_date.isoformat(),
+                "file_size": f.file_size,
+                "detected_type": f.detected_file_type.value,
+                "estimated_rows": f.estimated_rows,
+                "processing_sessions": len(f.processing_sessions)
+            }
+            for f in files
+        ]
+    }
+
+async def get_current_user():
+    """Placeholder for user authentication"""
+    # Implement user authentication
+    pass
