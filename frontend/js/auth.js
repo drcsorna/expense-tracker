@@ -15,8 +15,11 @@ async function login() {
         
         const response = await fetch(`${API_BASE}/auth/login`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `username=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                username: email,  // Backend expects 'username' key
+                password: password
+            })
         });
 
         if (response.ok) {
@@ -121,7 +124,10 @@ async function register() {
         const response = await fetch(`${API_BASE}/auth/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password })
+            body: JSON.stringify({ 
+                email: email, 
+                password: password 
+            })
         });
         
         if (response.ok) {

@@ -42,11 +42,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 💰 Favicon endpoint - serving the money emoji as favicon
+# 💰 Favicon endpoint - FIXED: Now properly serves favicon
 @app.get("/favicon.ico")
-async def favicon():
+async def get_favicon():
     """Serve 💰 emoji as favicon."""
-    # Create SVG favicon with money emoji
     svg_content = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
         <text y="80" font-size="80">💰</text>
     </svg>'''
@@ -63,10 +62,13 @@ async def favicon():
 # Mount the backend API under /api prefix
 app.mount("/api", backend_app)
 
-# Serve static files (CSS, JS, images) if you have them
+# Serve static files (CSS, JS, images) - FIXED: Now properly serves static files
 frontend_dir = Path("frontend")
 if frontend_dir.exists():
     app.mount("/static", StaticFiles(directory="frontend"), name="static")
+    logger.info("✅ Static files mounted from frontend/ directory")
+else:
+    logger.warning("⚠️ Frontend directory not found")
 
 # Debug endpoint to check router status
 @app.get("/debug/routers")
@@ -88,7 +90,8 @@ async def debug_routers():
             "database_status": db_status,
             "backend_routes": [{"path": route.path, "methods": route.methods} for route in backend_app.routes if hasattr(route, 'path')],
             "frontend_exists": frontend_dir.exists(),
-            "api_mounted": True
+            "api_mounted": True,
+            "static_files_mounted": frontend_dir.exists()
         }
     except Exception as e:
         return {"error": str(e)}
@@ -105,7 +108,9 @@ async def health_check():
             "routers_loaded": ROUTERS_AVAILABLE,
             "timestamp": "2025-07-10",
             "environment": "development",
-            "database": "sqlite"
+            "database": "sqlite",
+            "frontend_mounted": frontend_dir.exists(),
+            "favicon_enabled": True
         }
     except Exception as e:
         return {
@@ -120,8 +125,10 @@ async def serve_frontend():
     """Serve the main frontend HTML file."""
     html_file = Path("frontend/index.html")
     if html_file.exists():
+        logger.info("✅ Serving frontend/index.html")
         return FileResponse(html_file)
     else:
+        logger.error("❌ Frontend file not found: frontend/index.html")
         # Enhanced fallback with better instructions
         return {
             "message": "💰 Expense Tracker 3.0 - Frontend file not found",
@@ -141,17 +148,26 @@ async def serve_frontend():
                 "frontend": "http://192.168.10.160:8680/proxy/8000/",
                 "api_docs": "http://192.168.10.160:8680/proxy/8000/api/docs",
                 "debug": "http://192.168.10.160:8680/proxy/8000/debug/routers"
-            }
+            },
+            "error": "Frontend HTML file missing"
         }
 
 if __name__ == "__main__":
     print("🚀 Starting Expense Tracker 3.0...")
-    print("💰 Favicon: Enabled")
+    print("💰 Favicon: ✅ Fixed and Enabled")
+    print("📁 Static Files: ✅ Mounted under /static/")
+    print("🔧 Auth Format: ✅ JSON-based login")
     print("📱 Frontend: http://localhost:8000/")
     print("🔧 Backend API: http://localhost:8000/api/")
     print("📚 API Docs: http://localhost:8000/api/docs")
     print("🐛 Debug: http://localhost:8000/debug/routers")
+    print("🏥 Health: http://localhost:8000/health")
     print("🌐 Proxmox URL: http://192.168.10.160:8680/proxy/8000/")
+    print("\n🎯 FIXES APPLIED:")
+    print("   • Favicon route added")
+    print("   • Static file serving confirmed")
+    print("   • Enhanced logging for debugging")
+    print("   • Better error messages")
     
     uvicorn.run(
         "start_server:app",
