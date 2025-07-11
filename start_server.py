@@ -1,5 +1,5 @@
 # start_server.py
-# Enhanced server with favicon and better error handling
+# Enhanced server with clean static file structure
 
 import uvicorn
 from fastapi import FastAPI, Request, Response
@@ -42,33 +42,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 💰 Favicon endpoint - FIXED: Now properly serves favicon
-@app.get("/favicon.ico")
-async def get_favicon():
-    """Serve 💰 emoji as favicon."""
-    svg_content = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-        <text y="80" font-size="80">💰</text>
-    </svg>'''
-    
-    return Response(
-        content=svg_content,
-        media_type="image/svg+xml",
-        headers={
-            "Cache-Control": "public, max-age=31536000",  # Cache for 1 year
-            "Content-Type": "image/svg+xml"
-        }
-    )
-
 # Mount the backend API under /api prefix
 app.mount("/api", backend_app)
 
-# Serve static files (CSS, JS, images) - FIXED: Now properly serves static files
-frontend_dir = Path("frontend")
-if frontend_dir.exists():
-    app.mount("/static", StaticFiles(directory="frontend"), name="static")
-    logger.info("✅ Static files mounted from frontend/ directory")
+# Serve static files - 2025 standard approach
+static_dir = Path("static")
+if static_dir.exists():
+    app.mount("/static", StaticFiles(directory="static"), name="static")
+    logger.info("✅ Static files mounted: static/ → /static/")
 else:
-    logger.warning("⚠️ Frontend directory not found")
+    logger.warning("⚠️ Static directory not found")
 
 # Debug endpoint to check router status
 @app.get("/debug/routers")
@@ -89,9 +72,17 @@ async def debug_routers():
             "routers_available": ROUTERS_AVAILABLE,
             "database_status": db_status,
             "backend_routes": [{"path": route.path, "methods": route.methods} for route in backend_app.routes if hasattr(route, 'path')],
-            "frontend_exists": frontend_dir.exists(),
+            "static_exists": static_dir.exists(),
             "api_mounted": True,
-            "static_files_mounted": frontend_dir.exists()
+            "static_files_mounted": static_dir.exists(),
+            "favicon_method": "HTML data URI",
+            "static_files_debug": {
+                "css_exists": (static_dir / "css" / "styles.css").exists(),
+                "js_app_exists": (static_dir / "js" / "app.js").exists(),
+                "js_auth_exists": (static_dir / "js" / "auth.js").exists(),
+                "js_uploads_exists": (static_dir / "js" / "uploads.js").exists(),
+                "index_html_exists": (static_dir / "index.html").exists()
+            }
         }
     except Exception as e:
         return {"error": str(e)}
@@ -106,11 +97,11 @@ async def health_check():
             "status": "healthy",
             "version": "3.0.0",
             "routers_loaded": ROUTERS_AVAILABLE,
-            "timestamp": "2025-07-10",
+            "timestamp": "2025-07-11",
             "environment": "development",
             "database": "sqlite",
-            "frontend_mounted": frontend_dir.exists(),
-            "favicon_enabled": True
+            "static_mounted": static_dir.exists(),
+            "favicon_method": "HTML data URI"
         }
     except Exception as e:
         return {
@@ -122,40 +113,26 @@ async def health_check():
 # Serve the main HTML file at the root
 @app.get("/")
 async def serve_frontend():
-    """Serve the main frontend HTML file."""
-    html_file = Path("frontend/index.html")
+    """Serve the main HTML file."""
+    html_file = static_dir / "index.html"
     if html_file.exists():
-        logger.info("✅ Serving frontend/index.html")
+        logger.info("✅ Serving static/index.html")
         return FileResponse(html_file)
     else:
-        logger.error("❌ Frontend file not found: frontend/index.html")
-        # Enhanced fallback with better instructions
+        logger.error("❌ HTML file not found: static/index.html")
         return {
-            "message": "💰 Expense Tracker 3.0 - Frontend file not found",
-            "instructions": "Create frontend/index.html with the new UI",
+            "message": "💰 Expense Tracker 3.0 - HTML file not found",
+            "instructions": "Create static/index.html",
             "backend_api": "/api/docs",
             "debug_endpoint": "/debug/routers",
             "health_check": "/health",
-            "features": [
-                "ML-powered categorization",
-                "Smart duplicate detection", 
-                "Real-time progress tracking",
-                "Advanced analytics",
-                "User-defined categories",
-                "💰 Favicon support"
-            ],
-            "development_urls": {
-                "frontend": "http://192.168.10.160:8680/proxy/8000/",
-                "api_docs": "http://192.168.10.160:8680/proxy/8000/api/docs",
-                "debug": "http://192.168.10.160:8680/proxy/8000/debug/routers"
-            },
-            "error": "Frontend HTML file missing"
+            "error": "HTML file missing"
         }
 
 if __name__ == "__main__":
     print("🚀 Starting Expense Tracker 3.0...")
-    print("💰 Favicon: ✅ Fixed and Enabled")
-    print("📁 Static Files: ✅ Mounted under /static/")
+    print("💰 Favicon: ✅ HTML data URI")
+    print("📁 Static Files: ✅ static/ → /static/")
     print("🔧 Auth Format: ✅ JSON-based login")
     print("📱 Frontend: http://localhost:8000/")
     print("🔧 Backend API: http://localhost:8000/api/")
@@ -163,11 +140,10 @@ if __name__ == "__main__":
     print("🐛 Debug: http://localhost:8000/debug/routers")
     print("🏥 Health: http://localhost:8000/health")
     print("🌐 Proxmox URL: http://192.168.10.160:8680/proxy/8000/")
-    print("\n🎯 FIXES APPLIED:")
-    print("   • Favicon route added")
-    print("   • Static file serving confirmed")
-    print("   • Enhanced logging for debugging")
-    print("   • Better error messages")
+    print("\n🎯 2025 STRUCTURE:")
+    print("   • Clean static/ directory structure")
+    print("   • URL paths match directory names")
+    print("   • Industry standard approach")
     
     uvicorn.run(
         "start_server:app",

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>💰 Expense Tracker 3.0</title>
+    
+    <!-- Favicon using emoji (modern approach) -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💰</text></svg>">
+    <link rel="shortcut icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💰</text></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💰</text></svg>">
+    
+    <link rel="stylesheet" href="static/css/styles.css">
+</head>
+<body>
+    <!-- Toast Container -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="flex justify-between align-items-center">
+                <h1>💰 Expense Tracker 3.0</h1>
+                
+                <!-- User Dropdown -->
+                <div class="user-dropdown" id="user-dropdown">
+                    <button class="user-dropdown-trigger" onclick="toggleUserDropdown()">
+                        <span id="user-avatar">👤</span>
+                        <span id="welcome-message">Loading...</span>
+                        <span class="dropdown-arrow">▼</span>
+                    </button>
+                    
+                    <div class="user-dropdown-menu hidden" id="user-dropdown-menu">
+                        <!-- Connection Status in Dropdown -->
+                        <div class="dropdown-item connection-status-item">
+                            <span class="dropdown-label">Status:</span>
+                            <div class="connection-status-inline">
+                                <span id="connection-icon">🟡</span>
+                                <span id="connection-text">Connecting...</span>
+                            </div>
+                        </div>
+                        
+                        <div class="dropdown-divider"></div>
+                        
+                        <!-- Theme Toggle in Dropdown -->
+                        <div class="dropdown-item" onclick="toggleTheme()">
+                            <span class="dropdown-label">Theme:</span>
+                            <div class="theme-toggle-inline">
+                                <span id="theme-icon">🌙</span>
+                                <span id="theme-text">Dark Mode</span>
+                            </div>
+                        </div>
+                        
+                        <div class="dropdown-divider"></div>
+                        
+                        <!-- User Profile -->
+                        <div class="dropdown-item" onclick="openUserProfile()">
+                            <span class="dropdown-icon">👤</span>
+                            <span>User Profile</span>
+                        </div>
+                        
+                        <!-- Settings -->
+                        <div class="dropdown-item" onclick="openSettings()">
+                            <span class="dropdown-icon">⚙️</span>
+                            <span>Settings</span>
+                        </div>
+                        
+                        <!-- Upload History -->
+                        <div class="dropdown-item" onclick="openUploadHistory()">
+                            <span class="dropdown-icon">📜</span>
+                            <span>Upload History</span>
+                        </div>
+                        
+                        <div class="dropdown-divider"></div>
+                        
+                        <!-- About -->
+                        <div class="dropdown-item" onclick="showAbout()">
+                            <span class="dropdown-icon">ℹ️</span>
+                            <span>About</span>
+                        </div>
+                        
+                        <!-- Logout -->
+                        <div class="dropdown-item logout-item" onclick="logout()">
+                            <span class="dropdown-icon">🚪</span>
+                            <span>Logout</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Login Section -->
+        <div id="login-section" class="section">
+            <h2>🔐 Login</h2>
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <input type="email" id="email" placeholder="your.email@example.com">
+            </div>
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" placeholder="Enter your password">
+            </div>
+            <button class="btn btn-primary" onclick="login()">Login</button>
+        </div>
+
+        <!-- Upload Section -->
+        <div id="upload-section" class="section hidden">
+            <h2>📤 Upload Transactions</h2>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-lg); margin-bottom: var(--space-lg);">
+                <div>
+                    <h3>💰 Transaction File</h3>
+                    <p style="color: var(--color-text-secondary); margin-bottom: var(--space-md);">Upload your bank statement or transaction file</p>
+                    <input type="file" id="transaction-file" accept=".csv,.xlsx,.xls" style="margin-bottom: var(--space-md);">
+                    <button class="btn btn-primary" onclick="uploadTransactionFile()">
+                        🚀 Upload Transactions
+                    </button>
+                </div>
+                
+                <div>
+                    <h3>🎯 Bootstrap File</h3>
+                    <p style="color: var(--color-text-secondary); margin-bottom: var(--space-md);">Upload pre-categorized transactions to train the system</p>
+                    <input type="file" id="bootstrap-file" accept=".csv,.xlsx,.xls" style="margin-bottom: var(--space-md);">
+                    <button class="btn btn-warning" onclick="uploadBootstrapFile()">
+                        🧠 Bootstrap ML Model
+                    </button>
+                </div>
+            </div>
+
+            <div id="upload-results"></div>
+        </div>
+
+        <!-- Main Content Tabs -->
+        <div id="main-section" class="section hidden">
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab('staged')">📋 Review Transactions</div>
+                <div class="tab" onclick="switchTab('transactions')">💰 All Transactions</div>
+                <div class="tab" onclick="switchTab('duplicates')">🔍 Duplicate Manager</div>
+                <div class="tab" onclick="switchTab('categories')">🏷️ Categories</div>
+                <div class="tab" onclick="switchTab('stats')">📊 Analytics</div>
+            </div>
+
+            <!-- Tab content will be loaded dynamically -->
+            <div id="tab-content-container"></div>
+        </div>
+    </div>
+
+    <!-- Load JavaScript files -->
+    <script src="static/js/app.js"></script>
+    <script src="static/js/auth.js"></script>
+    <script src="static/js/pagination.js"></script>
+    <script src="static/js/transactions.js"></script>
+    <script src="static/js/uploads.js"></script>
+    <script src="static/js/duplicates.js"></script>
+</body>
+</html>
