@@ -147,6 +147,13 @@ function showMainApplication() {
     loadInitialData();
 }
 
+// ===== INITIAL DATA LOADING =====
+function loadInitialData() {
+    console.log('Loading initial data...');
+    // Load the default tab content
+    loadTabContent(window.appState.currentTab);
+}
+
 // ===== TAB MANAGEMENT =====
 function switchTab(tabName) {
     console.log(`Switching to tab: ${tabName}`);
@@ -164,18 +171,18 @@ function switchTab(tabName) {
     loadTabContent(tabName);
 }
 
-function loadTabContent(tabName) {
+async function loadTabContent(tabName) {
     const container = document.getElementById('tab-content-container');
     
     switch(tabName) {
         case 'staged':
-            loadStagedTransactionsTab(container);
+            await loadStagedTransactionsTab(container);
             break;
         case 'transactions':
-            loadTransactionsTab(container);
+            await loadTransactionsTab(container);
             break;
         case 'duplicates':
-            loadDuplicatesTab(container);
+            await loadDuplicatesTab(container);
             break;
         case 'categories':
             loadCategoriesTab(container);
@@ -186,6 +193,200 @@ function loadTabContent(tabName) {
         default:
             container.innerHTML = `<p>Tab content for ${tabName} coming soon...</p>`;
     }
+}
+
+// ===== TAB CONTENT LOADERS - USE YOUR EXISTING STATIC COMPONENTS =====
+async function loadStagedTransactionsTab(container) {
+    try {
+        console.log('Loading staged transactions tab from static component...');
+        
+        // Try different paths to find your static component
+        const possiblePaths = [
+            './static/components/staged-tab.html',
+            '/static/components/staged-tab.html',
+            'static/components/staged-tab.html',
+            './components/staged-tab.html'
+        ];
+        
+        let componentHtml = null;
+        
+        for (const path of possiblePaths) {
+            try {
+                const response = await fetch(path);
+                if (response.ok) {
+                    componentHtml = await response.text();
+                    console.log(`✅ Successfully loaded from: ${path}`);
+                    break;
+                }
+            } catch (e) {
+                console.log(`❌ Failed to load from: ${path}`);
+            }
+        }
+        
+        if (componentHtml) {
+            container.innerHTML = componentHtml;
+        } else {
+            throw new Error('Could not load static component from any path');
+        }
+        
+        // Initialize staged transactions functionality
+        if (typeof loadStagedTransactionsPaginated === 'function') {
+            loadStagedTransactionsPaginated();
+        }
+        
+    } catch (error) {
+        console.error('Error loading staged transactions tab:', error);
+        // Fallback to ensure it works
+        container.innerHTML = `
+            <div class="staged-transactions-content">
+                <div class="flex justify-between align-items-center mb-lg">
+                    <h3>📋 Staged Transactions</h3>
+                    <div class="gap-md flex">
+                        <button class="btn btn-success btn-sm" onclick="approveAllStaged()">✅ Approve All</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteAllStaged()">🗑️ Delete All</button>
+                    </div>
+                </div>
+                <div id="staged-list">Loading staged transactions...</div>
+            </div>
+        `;
+        
+        if (typeof loadStagedTransactionsPaginated === 'function') {
+            loadStagedTransactionsPaginated();
+        }
+    }
+}
+
+async function loadTransactionsTab(container) {
+    try {
+        console.log('Loading transactions tab from static component...');
+        
+        // Try different paths to find your static component
+        const possiblePaths = [
+            './static/components/transactions-tab.html',
+            '/static/components/transactions-tab.html',
+            'static/components/transactions-tab.html',
+            './components/transactions-tab.html'
+        ];
+        
+        let componentHtml = null;
+        
+        for (const path of possiblePaths) {
+            try {
+                const response = await fetch(path);
+                if (response.ok) {
+                    componentHtml = await response.text();
+                    console.log(`✅ Successfully loaded from: ${path}`);
+                    break;
+                }
+            } catch (e) {
+                console.log(`❌ Failed to load from: ${path}`);
+            }
+        }
+        
+        if (componentHtml) {
+            container.innerHTML = componentHtml;
+        } else {
+            throw new Error('Could not load static component from any path');
+        }
+        
+        // Initialize transactions functionality
+        if (typeof loadTransactionsPaginated === 'function') {
+            loadTransactionsPaginated();
+        }
+        
+    } catch (error) {
+        console.error('Error loading transactions tab:', error);
+        // Fallback to ensure it works
+        container.innerHTML = `
+            <div class="transactions-content">
+                <h3>💰 All Transactions</h3>
+                <div id="transactions-list">Loading transactions...</div>
+            </div>
+        `;
+        
+        if (typeof loadTransactionsPaginated === 'function') {
+            loadTransactionsPaginated();
+        }
+    }
+}
+
+async function loadDuplicatesTab(container) {
+    try {
+        console.log('Loading duplicates tab from static component...');
+        
+        // Try different paths to find your static component
+        const possiblePaths = [
+            './static/components/duplicates-tab.html',
+            '/static/components/duplicates-tab.html',
+            'static/components/duplicates-tab.html',
+            './components/duplicates-tab.html'
+        ];
+        
+        let componentHtml = null;
+        
+        for (const path of possiblePaths) {
+            try {
+                const response = await fetch(path);
+                if (response.ok) {
+                    componentHtml = await response.text();
+                    console.log(`✅ Successfully loaded from: ${path}`);
+                    break;
+                }
+            } catch (e) {
+                console.log(`❌ Failed to load from: ${path}`);
+            }
+        }
+        
+        if (componentHtml) {
+            container.innerHTML = componentHtml;
+        } else {
+            throw new Error('Could not load static component from any path');
+        }
+        
+        // Load duplicates if the loader exists
+        if (typeof loadDuplicates === 'function') {
+            loadDuplicates();
+        }
+        
+    } catch (error) {
+        console.error('Error loading duplicates tab:', error);
+        // Fallback to ensure it works
+        container.innerHTML = `
+            <div class="duplicates-content">
+                <div class="flex justify-between align-items-center mb-lg">
+                    <h3>🔍 Duplicate Manager</h3>
+                    <button class="btn btn-warning btn-sm" onclick="scanForDuplicates()">🔄 Scan for Duplicates</button>
+                </div>
+                <div id="duplicates-list">Loading duplicates...</div>
+            </div>
+        `;
+        
+        if (typeof loadDuplicates === 'function') {
+            loadDuplicates();
+        }
+    }
+}
+
+function loadCategoriesTab(container) {
+    container.innerHTML = `
+        <div class="categories-content">
+            <h3>🏷️ Categories</h3>
+            <div id="categories-list">Loading categories...</div>
+        </div>
+    `;
+    
+    // TODO: Implement category management
+}
+
+function loadStatsTab(container) {
+    container.innerHTML = `
+        <div class="stats-content">
+            <h3>📊 Analytics</h3>
+            <div id="stats-content">Loading analytics...</div>
+        </div>
+    `;
+    
+    // TODO: Implement analytics dashboard
 }
 
 // ===== USER MENU FUNCTIONS =====
@@ -212,215 +413,3 @@ function showAbout() {
     showToast('ℹ️ Expense Tracker 3.0 - AI-powered expense tracking', 'success');
     // TODO: Implement about modal with version info, features, etc.
 }
-
-// ===== AUTHENTICATION =====
-async function checkAuth() {
-    try {
-        updateConnectionStatus('reconnecting', 'Checking authentication...');
-        
-        const response = await fetch(`${API_BASE}/auth/me`, {
-            headers: { 'Authorization': `Bearer ${authToken}` }
-        });
-        
-        if (response.ok) {
-            const userData = await response.json();
-            updateConnectionStatus('connected', 'Authenticated');
-            updateWelcomeMessage(userData);
-            showMainApplication();
-        } else {
-            throw new Error('Authentication failed');
-        }
-    } catch (error) {
-        console.error('Auth check failed:', error);
-        updateConnectionStatus('disconnected', 'Authentication failed');
-        localStorage.removeItem('auth_token');
-        authToken = null;
-        showLoginSection();
-    }
-}
-
-function updateWelcomeMessage(userData) {
-    const welcomeElement = document.getElementById('welcome-message');
-    if (userData && userData.email) {
-        welcomeElement.textContent = userData.email;
-    } else {
-        welcomeElement.textContent = 'User';
-    }
-}
-
-async function login() {
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-    
-    if (!email || !password) {
-        showToast('❌ Please enter email and password', 'error');
-        return;
-    }
-    
-    try {
-        updateConnectionStatus('reconnecting', 'Logging in...');
-        
-        const formData = new FormData();
-        formData.append('username', email);
-        formData.append('password', password);
-        
-        const response = await fetch(`${API_BASE}/auth/login`, {
-            method: 'POST',
-            body: formData
-        });
-        
-        if (response.ok) {
-            const data = await response.json();
-            authToken = data.access_token;
-            localStorage.setItem('auth_token', authToken);
-            
-            updateConnectionStatus('connected', 'Login successful');
-            updateWelcomeMessage(data.user);
-            showToast('✅ Login successful!', 'success');
-            showMainApplication();
-        } else {
-            const error = await response.json();
-            throw new Error(error.detail || 'Login failed');
-        }
-    } catch (error) {
-        updateConnectionStatus('disconnected', 'Login failed');
-        showToast(`❌ Login failed: ${error.message}`, 'error');
-        console.error('Login error:', error);
-    }
-}
-
-function logout() {
-    localStorage.removeItem('auth_token');
-    authToken = null;
-    updateConnectionStatus('disconnected', 'Logged out');
-    showToast('👋 Logged out successfully', 'success');
-    showLoginSection();
-    closeUserDropdown();
-}
-
-// ===== INITIAL DATA LOADING =====
-function loadInitialData() {
-    console.log('Loading initial data...');
-    // Load the default tab content
-    loadTabContent(window.appState.currentTab);
-}
-
-// ===== TAB CONTENT LOADERS =====
-function loadStagedTransactionsTab(container) {
-    container.innerHTML = `
-        <div class="staged-transactions-content">
-            <div class="flex justify-between align-items-center mb-lg">
-                <h3>📋 Staged Transactions</h3>
-                <div class="gap-md flex">
-                    <button class="btn btn-success btn-sm" onclick="approveAllStaged()">✅ Approve All</button>
-                    <button class="btn btn-danger btn-sm" onclick="deleteAllStaged()">🗑️ Delete All</button>
-                </div>
-            </div>
-            <div id="staged-transactions-list">Loading staged transactions...</div>
-        </div>
-    `;
-    
-    // Load staged transactions if the loader exists
-    if (typeof loadStagedTransactionsPaginated === 'function') {
-        loadStagedTransactionsPaginated();
-    }
-}
-
-function loadTransactionsTab(container) {
-    container.innerHTML = `
-        <div class="transactions-content">
-            <h3>💰 All Transactions</h3>
-            <div id="transactions-list">Loading transactions...</div>
-        </div>
-    `;
-    
-    // Load transactions if the loader exists
-    if (typeof loadTransactionsPaginated === 'function') {
-        loadTransactionsPaginated();
-    }
-}
-
-function loadDuplicatesTab(container) {
-    container.innerHTML = `
-        <div class="duplicates-content">
-            <div class="flex justify-between align-items-center mb-lg">
-                <h3>🔍 Duplicate Manager</h3>
-                <button class="btn btn-warning btn-sm" onclick="scanForDuplicates()">🔄 Scan for Duplicates</button>
-            </div>
-            <div id="duplicates-list">Loading duplicates...</div>
-        </div>
-    `;
-    
-    // Load duplicates if the loader exists
-    if (typeof loadDuplicates === 'function') {
-        loadDuplicates();
-    }
-}
-
-function loadCategoriesTab(container) {
-    container.innerHTML = `
-        <div class="categories-content">
-            <h3>🏷️ Categories</h3>
-            <div id="categories-list">Loading categories...</div>
-        </div>
-    `;
-    
-    // TODO: Implement category management
-}
-
-function loadStatsTab(container) {
-    container.innerHTML = `
-        <div class="stats-content">
-            <h3>📊 Analytics</h3>
-            <div id="stats-content">Loading analytics...</div>
-        </div>
-    `;
-    
-    // TODO: Implement analytics dashboard
-}
-
-// ===== TOAST NOTIFICATIONS =====
-function showToast(message, type = 'info') {
-    const container = document.getElementById('toast-container');
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    toast.textContent = message;
-    
-    container.appendChild(toast);
-    
-    // Trigger animation
-    setTimeout(() => toast.classList.add('show'), 100);
-    
-    // Remove toast after 5 seconds
-    setTimeout(() => {
-        toast.classList.remove('show');
-        setTimeout(() => container.removeChild(toast), 300);
-    }, 5000);
-}
-
-// ===== UTILITY FUNCTIONS =====
-async function makeAuthenticatedRequest(url, options = {}) {
-    const defaultOptions = {
-        headers: {
-            'Authorization': `Bearer ${authToken}`,
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    };
-    
-    return fetch(url, { ...options, ...defaultOptions });
-}
-
-// Make functions globally available
-window.toggleUserDropdown = toggleUserDropdown;
-window.toggleTheme = toggleTheme;
-window.openUserProfile = openUserProfile;
-window.openSettings = openSettings;
-window.openUploadHistory = openUploadHistory;
-window.showAbout = showAbout;
-window.login = login;
-window.logout = logout;
-window.swsoonitchTab = switchTab;
-window.showToast = showToast;
-window.makeAuthenticatedRequest = makeAuthenticatedRequest;
-window.updateConnectionStatus = updateConnectionStatus;
