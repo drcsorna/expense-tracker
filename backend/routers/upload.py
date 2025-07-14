@@ -73,6 +73,7 @@ async def upload_raw_file(
             }
         
         # Create raw file record
+        # Create raw file record
         raw_file = models.RawFile(
             filename=f"raw_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{file.filename}",
             original_filename=file.filename,
@@ -80,7 +81,7 @@ async def upload_raw_file(
             file_size=file_size,
             file_type=file_extension,
             content_hash=content_hash,
-            detected_file_type=file_type,
+            detected_file_type=models.FileType(file_type),  # ← FIXED
             user_id=current_user.id
         )
         

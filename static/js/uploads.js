@@ -41,9 +41,9 @@ async function uploadRawFile(fileInput, fileType = 'transaction_data') {
         
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('file_purpose', fileType);
+        formData.append('file_type', fileType);
         
-        const response = await fetch(`${API_BASE}/upload/transactions/`, {
+        const response = await fetch(`${API_BASE}/upload/raw/`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${authToken}` },
             body: formData
