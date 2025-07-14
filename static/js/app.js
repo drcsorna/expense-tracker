@@ -27,6 +27,30 @@ document.addEventListener('DOMContentLoaded', function() {
     setupEventListeners();
 });
 
+// ===== TOAST NOTIFICATIONS - MISSING FUNCTION ADDED =====
+function showToast(message, type = 'info') {
+    const container = document.getElementById('toast-container');
+    
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+    
+    container.appendChild(toast);
+    
+    // Use your existing CSS animation
+    setTimeout(() => toast.classList.add('show'), 100);
+    
+    // Remove after 5 seconds  
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => {
+            if (container.contains(toast)) {
+                container.removeChild(toast);
+            }
+        }, 300);
+    }, 5000);
+}
+
 // ===== EVENT LISTENERS =====
 function setupEventListeners() {
     // Close dropdown when clicking outside
@@ -343,7 +367,7 @@ async function loadDuplicatesTab(container) {
             throw new Error('Could not load static component from any path');
         }
         
-        // Load duplicates if the loader exists
+        // Initialize duplicates functionality
         if (typeof loadDuplicates === 'function') {
             loadDuplicates();
         }
